@@ -1,19 +1,14 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 
 from database import engine
 from models_db import Base
 
 import services
 from models import Kudos
-import models_db
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
-
-storage.scores
-storage.log
-storage.user_log
 
 #main domain
 @app.get("/")

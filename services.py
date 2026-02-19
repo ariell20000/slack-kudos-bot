@@ -7,19 +7,12 @@ from datetime import datetime, date
 def get_leaderboard():
     db = SessionLocal()
 
-    results = (
-        db.query(
-            KudosDB.to_user,
-            func.count(KudosDB.id).label("score")
-        )
-        .group_by(KudosDB.to_user)
-        .order_by(func.count(KudosDB.id).desc())
+    leaderboard = db.query(KudosDB.to_user, func.count(KudosDB.id).label("score"))\
+        .group_by(KudosDB.to_user)\
+        .order_by(func.count(KudosDB.id).desc())\
         .all()
-    )
-
     db.close()
-
-    return [{"user": r[0], "score": r[1]} for r in results]
+    return [{"username": user, "score": score} for user, score in leaderboard]
 
 def get_kudos_by_id(kudos_id: int):
     db = SessionLocal()
