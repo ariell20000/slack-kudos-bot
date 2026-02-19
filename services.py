@@ -3,47 +3,53 @@ from fastapi import HTTPException
 from database import SessionLocal
 from models_db import KudosDB
 from datetime import datetime, date
-import storage
 
 def get_leaderboard():
-    leaderboard = sorted(storage.scores.items(), key=lambda item: item[1], reverse=True)
-    newleaderboard = []
-    for name, score in leaderboard:
-        newleaderboard.append({"user": name, "score": score})
-    return newleaderboard
+    db = SessionLocal()
+
+    results = (
+        db.query(
+            KudosDB.to_user,
+            func.count(KudosDB.id).label("score")
+        )
+        .group_by(KudosDB.to_user)
+        .order_by(func.count(KudosDB.id).desc())
+        .all()
+    )
+
+    db.close()
+
+    return [{"user": r[0], "score": r[1]} for r in results]
 
 def get_kudos_by_id(kudos_id: int):
-    if (kudos_id not in KudosDB):
-        raise HTTPException(
-            status_code=404,
-            detail="Kudos not found. Please check the kudos ID and try again.",
-        )
-    return storage.log[kudos_id]
+    db = SessionLocal()
+    kudos = db.get(KudosDB, kudos_id)
+    if not kudos:
+        db.close()
+        raise HTTPException(status_code=404, detail="Kudos not found.")
+    db.close()
+    return kudos
 
 def delete_kudos_by_id(kudos_id: int):
-    if (kudos_id not in storage.log):
-        raise HTTPException(
-            status_code=404,
-            detail="Kudos not found. Please check the kudos ID and try again.",
-        )
-    kudos = storage.log[kudos_id]
-    # Update score for the receiver
-    if storage.scores[kudos.to_user]==1:
-        del storage.scores[kudos.to_user]
-    else:
-        storage.scores[kudos.to_user] = storage.scores[kudos.to_user] - 1
-    # update logs
-    del storage.log[kudos_id]
-    if len(storage.user_log[kudos.to_user]) == 1:
-        del storage.user_log[kudos.to_user]
-    else:
-        storage.user_log[kudos.to_user].remove(kudos)
-    return {"status": "deleted", "kudos_id": kudos_id}
+    db = SessionLocal()
+    kudos = db.get(KudosDB, kudos_id)
+
+    if not kudos:
+        db.close()
+        raise HTTPException(status_code=404, detail="Kudos not found.")
+    db.delete(kudos)
+    db.commit()
+    db.close()
+    return {"status": "deleted"}
 
 def get_kudoses_by_username(username: str):
-    if (username not in storage.user_log):
-        return []
-    return storage.user_log[username]
+    db = SessionLocal()
+    kudos = db.query(KudosDB).filter(KudosDB.to_user == username).all()
+    if not kudos:
+        db.close()
+        raise HTTPException(status_code=404, detail="Kudos not found.")
+    db.close()
+    return kudos
 
 def add_kudos(kudos):
     # give kodus

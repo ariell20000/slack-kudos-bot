@@ -5,7 +5,6 @@ from models_db import Base
 
 import services
 from models import Kudos
-import storage
 import models_db
 
 Base.metadata.create_all(bind=engine)
