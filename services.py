@@ -6,8 +6,7 @@ from models_db import KudosDB, User
 from datetime import datetime, date
 from models import KudosResponse, UserFullResponse
 
-def get_leaderboard():
-    db = SessionLocal()
+def get_leaderboard(db: SessionLocal):
     leaderboard = (db.query(
         User.username,
         func.count(KudosDB.id).label("score")
@@ -23,8 +22,7 @@ def get_leaderboard():
     db.close()
     return [{"username": user, "score": score} for user, score in leaderboard]
 
-def get_kudos_by_id(kudos_id: int):
-    db = SessionLocal()
+def get_kudos_by_id(kudos_id: int, db: SessionLocal):
     kudos = db.get(KudosDB, kudos_id)
     if not kudos:
         db.close()
@@ -37,8 +35,7 @@ def get_kudos_by_id(kudos_id: int):
     db.close()
     return kudos_res
 
-def delete_kudos_by_id(kudos_id: int):
-    db = SessionLocal()
+def delete_kudos_by_id(kudos_id: int, db: SessionLocal):
     kudos = db.get(KudosDB, kudos_id)
     if not kudos:
         db.close()
@@ -48,8 +45,7 @@ def delete_kudos_by_id(kudos_id: int):
     db.close()
     return {"status": "deleted"}
 
-def get_kudos_by_username(username: str):
-    db = SessionLocal()
+def get_kudos_by_username(username: str, db: SessionLocal):
     user = db.query(User).filter(User.username == username).first()
     if not user:
         db.close()
@@ -65,7 +61,7 @@ def get_kudos_by_username(username: str):
     db.close()
     return kudos_res
 
-def add_kudos(kudos):
+def add_kudos(kudos, db: SessionLocal):
     # give kodus
     if kudos.from_user == kudos.to_user:
         raise HTTPException( #error of http that tells the user we have an error
@@ -73,7 +69,6 @@ def add_kudos(kudos):
             detail="Sorry, you aren't allowed to give kudos to yourself. "
                    "Try giving kudos to one of your teammates instead!",
         )
-    db = SessionLocal()
     try:
         if not check_user_exists(db, kudos.from_user):
             create_user(db, kudos.from_user)
@@ -116,8 +111,7 @@ def add_kudos(kudos):
         "kudos_id": db_kudos.id
     }
 
-def get_status(username: str):
-    db=SessionLocal()
+def get_status(username: str, db: SessionLocal):
     user=db.query(User).filter(User.username == username).first()
     if not user:
         db.close()
@@ -132,15 +126,13 @@ def get_status(username: str):
         "is_active": user.is_active
     }
 
-def add_user(username: str):
-    db = SessionLocal()
+def add_user(username: str, db: SessionLocal):
     try:
         return create_user(db, username)
     finally:
         db.close()
 
-def delete_user(username: str):
-    db = SessionLocal()
+def delete_user(username: str, db: SessionLocal):
     user = db.query(User).filter(User.username == username).first()
     if not user:
         db.close()
@@ -150,8 +142,7 @@ def delete_user(username: str):
     db.close()
     return {"status": "deleted"}
 
-def get_users_data():
-    db = SessionLocal()
+def get_users_data(db: SessionLocal):
     try:
         users = (
             db.query(User)
@@ -185,13 +176,13 @@ def get_users_data():
 
 
 #function that checks if the user has gave too many kudos in a day, with a default limit of 5
-def check_too_many_kudos_in_day(db, user_id, k=5):
+def check_too_many_kudos_in_day(db: SessionLocal, user_id, k=5):
     kudosnum = db.query(KudosDB).filter(KudosDB.from_user_id == user_id, func.date(KudosDB.time_created)==date.today()).count()
     if kudosnum >= k:
         return True
     return False
 
-def create_user(db, username: str):
+def create_user(db: SessionLocal, username: str):
     if check_user_exists(db, username):
         raise HTTPException(status_code=400, detail="Username already exists.")
     new_user = User(username=username)
@@ -199,13 +190,13 @@ def create_user(db, username: str):
     db.commit()
     return {"status": "created", "username": new_user.username}
 
-def check_user_exists(db, username: str):
+def check_user_exists(db: SessionLocal, username: str):
     user = db.query(User).filter(User.username == username).first()
     if not user:
         return False
     return True
 
-def check_user_active(db, username: str):
+def check_user_active(db: SessionLocal, username: str):
     user = db.query(User).filter(User.username == username).first()
     if not user:
         return False
