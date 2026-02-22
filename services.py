@@ -58,13 +58,14 @@ def get_kudos_by_username(username: str, db: SessionLocal):
 def add_kudos(kudos, db: SessionLocal):
     # give kodus
     if kudos.from_user == kudos.to_user:
-        raise HTTPException( #error of http that tells the user we have an error
+        raise HTTPException(
             status_code=400,
             detail="Sorry, you aren't allowed to give kudos to yourself. "
                    "Try giving kudos to one of your teammates instead!",
         )
-    with db.begin():
-        from_user = db.query(User).filter(User.username == kudos.from_user).with_for_update().first()
+    with (db.begin()):
+        from_user = db.query(User).filter(User.username == kudos.from_user
+                    ).with_for_update().first() # Lock the from_user row for update
         to_user = db.query(User).filter(User.username == kudos.to_user).first()
         if not from_user:
             from_user = User(username=kudos.from_user)
@@ -179,19 +180,7 @@ def create_user(db, username):
         db.commit()
         return {"status": "created"}
     except IntegrityError:
+        # Rollback the transaction to clear the failed insert
+        # relevant in race conditions where two requests try to create the same user at the same time
         db.rollback()
         raise HTTPException(status_code=400, detail="User already exists")
-
-# def check_user_exists(db: SessionLocal, username: str):
-#     user = db.query(User).filter(User.username == username).first()
-#     if not user:
-#         return False
-#     return True
-
-# def check_user_active(db: SessionLocal, username: str):
-#     user = db.query(User).filter(User.username == username).first()
-#     if not user:
-#         return False
-#     if not user.is_active:
-#         return False
-#     return True
