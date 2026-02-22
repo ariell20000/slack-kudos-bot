@@ -45,3 +45,14 @@ def get_kudoses_by_username(username: str):
 def add_kudos(kudos: Kudos):
     return services.add_kudos(kudos)
 
+@app.get("/user/{username}/stats")
+def get_status(username: str):
+    return services.get_status(username)
+
+@app.post("/create/user/{username}")
+def add_user(username: str):
+    return services.add_user(username)
+
+@app.delete("/user/{username}")
+def delete_user(username: str):
+    return services.delete_user(username)
