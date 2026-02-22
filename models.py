@@ -15,3 +15,13 @@ class Kudos(BaseModel):
     message: Annotated[str, AfterValidator(is_empty)]
     kudos_id: Optional[int] = None
     time_created: Optional[datetime] = None
+
+class KudosResponse(BaseModel):
+    message: str
+    from_user: str
+    time_created: datetime
+
+class UserFullResponse(BaseModel):
+    username: str
+    is_active: bool
+    kudos_received: list[KudosResponse]

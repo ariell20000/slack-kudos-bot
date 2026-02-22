@@ -4,7 +4,7 @@ from database import engine
 from models_db import Base
 
 import services
-from models import Kudos
+from models import Kudos, UserFullResponse, KudosResponse
 
 Base.metadata.create_all(bind=engine)
 
@@ -27,7 +27,7 @@ def get_leaderboard():
 
 
 #subdomain that returns kudos by id
-@app.get("/kudos/{kudos_id}")
+@app.get("/kudos/{kudos_id}", response_model=KudosResponse)
 def get_kudos_by_id(kudos_id: int):
     return services.get_kudos_by_id(kudos_id)
 
@@ -37,9 +37,9 @@ def delete_kudos_by_id(kudos_id: int):
     return services.delete_kudos_by_id(kudos_id)
 
 #subdomain that returns kudos by username
-@app.get("/user/{username}")
-def get_kudoses_by_username(username: str):
-    return services.get_kudoses_by_username(username)
+@app.get("/user/{username}", response_model=list[KudosResponse])
+def get_kudos_by_username(username: str):
+    return services.get_kudos_by_username(username)
 
 @app.post("/kudos")
 def add_kudos(kudos: Kudos):
@@ -57,6 +57,6 @@ def add_user(username: str):
 def delete_user(username: str):
     return services.delete_user(username)
 
-@app.get("/users/data")
+@app.get("/users/data", response_model=list[UserFullResponse])
 def get_users_data():
     return services.get_users_data()

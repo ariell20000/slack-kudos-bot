@@ -4,6 +4,7 @@ from fastapi import HTTPException
 from database import SessionLocal
 from models_db import KudosDB, User
 from datetime import datetime, date
+from models import KudosResponse, UserFullResponse
 
 def get_leaderboard():
     db = SessionLocal()
@@ -28,8 +29,13 @@ def get_kudos_by_id(kudos_id: int):
     if not kudos:
         db.close()
         raise HTTPException(status_code=404, detail="Kudos not found.")
+    kudos_res= KudosResponse(
+        message=kudos.message,
+        from_user=kudos.from_user.username,
+        time_created=kudos.time_created
+    )
     db.close()
-    return kudos
+    return kudos_res
 
 def delete_kudos_by_id(kudos_id: int):
     db = SessionLocal()
@@ -42,15 +48,22 @@ def delete_kudos_by_id(kudos_id: int):
     db.close()
     return {"status": "deleted"}
 
-def get_kudoses_by_username(username: str):
+def get_kudos_by_username(username: str):
     db = SessionLocal()
     user = db.query(User).filter(User.username == username).first()
     if not user:
         db.close()
         raise HTTPException(status_code=404, detail="User not found.")
-    kudoses = user.received_kudos
+    kudos = user.received_kudos
+    kudos_res = []
+    for k in kudos:
+        kudos_res.append(KudosResponse(
+            message=k.message,
+            from_user=k.from_user.username,
+            time_created=k.time_created
+        ))
     db.close()
-    return kudoses
+    return kudos_res
 
 def add_kudos(kudos):
     # give kodus
@@ -152,19 +165,20 @@ def get_users_data():
         users_data = []
 
         for user in users:
-            users_data.append({
-                "username": user.username,
-                "is_active": user.is_active,
-                "kudos_received": [
-                    {
-                        "message": kudos.message,
-                        "from": kudos.from_user.username,
-                        "time_created": kudos.time_created
-                    }
-                    for kudos in user.received_kudos
-                ]
-            })
+            kudos_res=[]
+            for k in user.received_kudos:
+                kudos_res.append(KudosResponse(
+                    message=k.message,
+                    from_user=k.from_user.username,
+                    time_created=k.time_created
+                ))
+            users_data.append(UserFullResponse(
+                username=user.username,
+                is_active=user.is_active,
+                kudos_received=kudos_res
+             )
 
+        )
         return users_data
     finally:
         db.close()
@@ -182,6 +196,7 @@ def create_user(db, username: str):
         raise HTTPException(status_code=400, detail="Username already exists.")
     new_user = User(username=username)
     db.add(new_user)
+    db.commit()
     return {"status": "created", "username": new_user.username}
 
 def check_user_exists(db, username: str):
