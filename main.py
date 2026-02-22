@@ -56,3 +56,7 @@ def add_user(username: str):
 @app.delete("/user/{username}")
 def delete_user(username: str):
     return services.delete_user(username)
+
+@app.get("/users/data")
+def get_users_data():
+    return services.get_users_data()

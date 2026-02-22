@@ -1,4 +1,5 @@
 from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 from fastapi import HTTPException
 from database import SessionLocal
 from models_db import KudosDB, User
@@ -33,7 +34,6 @@ def get_kudos_by_id(kudos_id: int):
 def delete_kudos_by_id(kudos_id: int):
     db = SessionLocal()
     kudos = db.get(KudosDB, kudos_id)
-
     if not kudos:
         db.close()
         raise HTTPException(status_code=404, detail="Kudos not found.")
@@ -44,11 +44,11 @@ def delete_kudos_by_id(kudos_id: int):
 
 def get_kudoses_by_username(username: str):
     db = SessionLocal()
-    if not check_user_exists(db, username):
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
         db.close()
         raise HTTPException(status_code=404, detail="User not found.")
-    user = db.query(User).filter(User.username == username).first()
-    kudoses = db.query(KudosDB).filter(KudosDB.to_user_id == user.id).all()
+    kudoses = user.received_kudos
     db.close()
     return kudoses
 
@@ -62,6 +62,10 @@ def add_kudos(kudos):
         )
     db = SessionLocal()
     try:
+        if not check_user_exists(db, kudos.from_user):
+            create_user(db, kudos.from_user)
+        if not check_user_exists(db, kudos.to_user):
+            create_user(db, kudos.to_user)
         if not check_user_active(db, kudos.from_user):
             raise HTTPException(
                 status_code=400,
@@ -73,10 +77,6 @@ def add_kudos(kudos):
                 detail="Sorry, you aren't allowed to give kudos to an inactive user. "
                        "Try giving kudos to one of your active teammates instead!",
             )
-        if not check_user_exists(db, kudos.from_user):
-            create_user(db, kudos.from_user)
-        if not check_user_exists(db, kudos.to_user):
-            create_user(db, kudos.to_user)
         query1= db.query(User).filter(User.username  == kudos.from_user).first()
         query2= db.query(User).filter(User.username  == kudos.to_user).first()
         id1=query1.id
@@ -136,6 +136,39 @@ def delete_user(username: str):
     db.commit()
     db.close()
     return {"status": "deleted"}
+
+def get_users_data():
+    db = SessionLocal()
+    try:
+        users = (
+            db.query(User)
+            .options(
+                joinedload(User.received_kudos)
+                .joinedload(KudosDB.from_user)
+            )
+            .all()
+        )
+
+        users_data = []
+
+        for user in users:
+            users_data.append({
+                "username": user.username,
+                "is_active": user.is_active,
+                "kudos_received": [
+                    {
+                        "message": kudos.message,
+                        "from": kudos.from_user.username,
+                        "time_created": kudos.time_created
+                    }
+                    for kudos in user.received_kudos
+                ]
+            })
+
+        return users_data
+    finally:
+        db.close()
+
 
 #function that checks if the user has gave too many kudos in a day, with a default limit of 5
 def check_too_many_kudos_in_day(db, user_id, k=5):

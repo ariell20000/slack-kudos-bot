@@ -11,8 +11,8 @@ class KudosDB(Base):
     to_user_id = Column(Integer, ForeignKey("users.id"))
     message = Column(String, nullable=False)
     time_created = Column(DateTime, nullable=False)
-    from_user = relationship("User", foreign_keys=[from_user_id])
-    to_user = relationship("User", foreign_keys=[to_user_id])
+    from_user = relationship("User", foreign_keys=[from_user_id], back_populates="given_kudos")
+    to_user = relationship("User", foreign_keys=[to_user_id], back_populates="received_kudos")
 
 
 class User(Base):
@@ -21,7 +21,8 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     username = Column(String, unique=True, index=True)
     is_active = Column(Boolean, default=True)
-    received_kudos = relationship("KudosDB", foreign_keys="KudosDB.to_user_id")
-    given_kudos = relationship("KudosDB", foreign_keys="KudosDB.from_user_id")
+    received_kudos = relationship("KudosDB", foreign_keys=[KudosDB.to_user_id], back_populates="to_user")
+    given_kudos = relationship("KudosDB", foreign_keys=[KudosDB.from_user_id], back_populates="from_user")
+
 
 
