@@ -23,6 +23,9 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     received_kudos = relationship("KudosDB", foreign_keys=[KudosDB.to_user_id], back_populates="to_user")
     given_kudos = relationship("KudosDB", foreign_keys=[KudosDB.from_user_id], back_populates="from_user")
+    password_hash = Column(String, nullable=False)
+    role = Column(String, default="user")  # user / admin
+
 
 
 

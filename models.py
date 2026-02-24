@@ -8,20 +8,32 @@ def is_empty(s: str):
         raise ValueError("Field cannot be empty")
     return s
 
+# data model for kudos
 class Kudos(BaseModel):
-    # data model for kudos
     from_user: Annotated[str, AfterValidator(is_empty)]
     to_user: Annotated[str, AfterValidator(is_empty)]
     message: Annotated[str, AfterValidator(is_empty)]
     kudos_id: Optional[int] = None
     time_created: Optional[datetime] = None
 
+# response model for kudos
 class KudosResponse(BaseModel):
     message: str
     from_user: str
     time_created: datetime
 
+# response model for user data
 class UserFullResponse(BaseModel):
     username: str
     is_active: bool
     kudos_received: list[KudosResponse]
+
+# data model for user creation
+class UserCreate(BaseModel):
+    username: str
+    password: str
+
+# data model for user login
+class UserLogin(BaseModel):
+    username: str
+    password: str

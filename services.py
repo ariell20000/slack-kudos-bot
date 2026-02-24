@@ -6,6 +6,9 @@ from database import SessionLocal
 from models_db import KudosDB, User
 from datetime import datetime, date
 from models import KudosResponse, UserFullResponse
+from security import hash_password
+from security import verify_password, create_access_token
+
 
 def get_leaderboard(db: SessionLocal):
     leaderboard = (db.query(
@@ -55,7 +58,7 @@ def get_kudos_by_username(username: str, db: SessionLocal):
         ))
     return kudos_res
 
-def add_kudos(kudos, db: SessionLocal):
+def add_kudos(kudos, current_user, db: SessionLocal):
     # give kodus
     if kudos.from_user == kudos.to_user:
         raise HTTPException(
@@ -64,17 +67,12 @@ def add_kudos(kudos, db: SessionLocal):
                    "Try giving kudos to one of your teammates instead!",
         )
     with (db.begin()):
-        from_user = db.query(User).filter(User.username == kudos.from_user
-                    ).with_for_update().first() # Lock the from_user row for update
+        from_user = current_user
         to_user = db.query(User).filter(User.username == kudos.to_user).first()
         if not from_user:
-            from_user = User(username=kudos.from_user)
-            db.add(from_user)
-            db.flush()  # Ensure from_user.id is populated before using it
+            raise HTTPException(status_code=404, detail="From user not found.")
         if not to_user:
-            to_user = User(username=kudos.to_user)
-            db.add(to_user)
-            db.flush()  # Ensure to_user.id is populated before using it
+            raise HTTPException(status_code=404, detail="To user not found.")
         if not from_user.is_active:
             raise HTTPException(
                 status_code=400,
@@ -120,12 +118,31 @@ def get_status(username: str, db: SessionLocal):
         "is_active": user.is_active
     }
 
-def add_user(username: str, db: SessionLocal):
+def register_user(user_data, db):
     with db.begin():
-        user = db.query(User).filter(User.username == username).first()
-        if user:
-            raise HTTPException(status_code=404, detail="User already exists..")
-    return create_user(db, username)
+        hashed = hash_password(user_data.password)
+        new_user = User(
+            username=user_data.username,
+            password_hash=hashed
+        )
+        db.add(new_user)
+    return {"status": "created"}
+
+def login_user(user_data, db):
+    user = db.query(User).filter(User.username == user_data.username).first()
+
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    if not verify_password(user_data.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    token = create_access_token({"sub": user.username})
+
+    return {
+        "access_token": token,
+        "token_type": "bearer"
+    }
 
 def delete_user(username: str, db: SessionLocal):
     with db.begin():
@@ -184,3 +201,4 @@ def create_user(db, username):
         # relevant in race conditions where two requests try to create the same user at the same time
         db.rollback()
         raise HTTPException(status_code=400, detail="User already exists")
+
