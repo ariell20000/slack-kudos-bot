@@ -137,6 +137,8 @@ def login_user(user_data, db):
 
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="User is inactive")
 
     if not verify_password(user_data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
