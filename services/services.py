@@ -60,6 +60,14 @@ def get_kudos_by_username(username: str, db: SessionLocal):
     return kudos_res
 
 def add_kudos(kudos, current_user, db: SessionLocal):
+    if not kudos.to_user:
+        raise HTTPException(400, "Missing receiver")
+
+    if not kudos.message:
+        raise HTTPException(400, "Message cannot be empty")
+
+    if len(kudos.message) > 200:
+        raise HTTPException(400, "Message too long")
 
     if kudos.from_user == kudos.to_user:
         raise HTTPException(
@@ -121,8 +129,15 @@ def get_status(username: str, db: SessionLocal):
     }
 
 def register_user(user_data, db):
+    if not user_data.username:
+        raise ValueError("Username cannot be empty")
+    if len(user_data.username) < 3:
+        raise ValueError("Username too short")
     if not user_data.password:
         raise ValueError("Password cannot be empty")
+    if len(user_data.password) < 4:
+        raise ValueError("Password too short")
+
     with db.begin():
         hashed = hash_password(user_data.password)
         new_user = User(

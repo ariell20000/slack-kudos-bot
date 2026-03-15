@@ -82,8 +82,8 @@ def test_empty_password_not_allowed(db_session):
 
 def test_unique_username(db_session):
 
-    u1 = UserInput("same", "1")
-    u2 = UserInput("same", "2")
+    u1 = UserInput("same", "1234")
+    u2 = UserInput("same", "1234")
 
     register_user(u1, db_session)
 
@@ -97,7 +97,7 @@ def test_unique_username(db_session):
 
 def test_login_success(db_session):
 
-    user = UserInput("login_user", "123")
+    user = UserInput("login_user", "1234")
 
     register_user(user, db_session)
 
@@ -108,7 +108,7 @@ def test_login_success(db_session):
 
 def test_login_wrong_password(db_session):
 
-    register_user(UserInput("bob", "123"), db_session)
+    register_user(UserInput("bob", "1234"), db_session)
 
     wrong = UserInput("bob", "wrong")
 
@@ -118,7 +118,7 @@ def test_login_wrong_password(db_session):
 
 def test_login_user_not_found(db_session):
 
-    user = UserInput("ghost", "123")
+    user = UserInput("ghost", "1234")
 
     with pytest.raises(Exception):
         login_user(user, db_session)
@@ -130,7 +130,7 @@ def test_login_user_not_found(db_session):
 
 def test_inactive_user_cannot_login(db_session):
 
-    user = UserInput("inactive", "123")
+    user = UserInput("inactive", "1234")
 
     register_user(user, db_session)
 
@@ -149,7 +149,7 @@ def test_inactive_user_cannot_login(db_session):
 
 def test_delete_user_sets_inactive(db_session):
 
-    user = UserInput("to_delete", "123")
+    user = UserInput("to_delete", "1234")
 
     register_user(user, db_session)
 
@@ -166,7 +166,7 @@ def test_delete_user_sets_inactive(db_session):
 
 def test_status_for_new_user(db_session):
 
-    user = UserInput("status_user", "123")
+    user = UserInput("status_user", "1234")
 
     register_user(user, db_session)
 
@@ -189,7 +189,7 @@ def test_status_user_not_found(db_session):
 
 def test_default_role_is_user(db_session):
 
-    user = UserInput("role_user", "123")
+    user = UserInput("role_user", "1234")
 
     register_user(user, db_session)
 
