@@ -121,6 +121,8 @@ def get_status(username: str, db: SessionLocal):
     }
 
 def register_user(user_data, db):
+    if not user_data.password:
+        raise ValueError("Password cannot be empty")
     with db.begin():
         hashed = hash_password(user_data.password)
         new_user = User(

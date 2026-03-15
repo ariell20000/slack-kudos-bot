@@ -1,6 +1,6 @@
 # models_db.py
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, CheckConstraint
 from database import Base
 from sqlalchemy.orm import relationship
 
@@ -27,6 +27,9 @@ class User(Base):
     given_kudos = relationship("KudosDB", foreign_keys=[KudosDB.from_user_id], back_populates="from_user")
     password_hash = Column(String, nullable=False)
     role = Column(String, default="user")  # user / admin
+    __table_args__ = (
+        CheckConstraint("LENGTH(password_hash) > 0", name="password_not_empty"),
+    )
 
 
 
