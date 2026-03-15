@@ -1,11 +1,10 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from database import SessionLocal
 from models import Kudos
 from models_db import User
 from core.dependencies import get_current_user, get_db
-import services
+from services import services
 
 router = APIRouter(tags=["Kudos"])
 

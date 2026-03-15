@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
+# SQLite URL for local development
 DATABASE_URL = "sqlite:///./kudos.db"
 
 engine = create_engine(
