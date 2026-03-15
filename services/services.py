@@ -59,7 +59,6 @@ def get_kudos_by_username(username: str, db: SessionLocal):
     return kudos_res
 
 def add_kudos(kudos, current_user, db: SessionLocal):
-    # give kodus
     if kudos.from_user == kudos.to_user:
         raise HTTPException(
             status_code=400,
