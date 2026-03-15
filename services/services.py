@@ -1,3 +1,5 @@
+# services.py
+
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
@@ -59,51 +61,53 @@ def get_kudos_by_username(username: str, db: SessionLocal):
     return kudos_res
 
 def add_kudos(kudos, current_user, db: SessionLocal):
+
     if kudos.from_user == kudos.to_user:
         raise HTTPException(
             status_code=400,
-            detail="Sorry, you aren't allowed to give kudos to yourself. "
-                   "Try giving kudos to one of your teammates instead!",
+            detail="You cannot give kudos to yourself"
         )
-    with (db.begin()):
-        from_user = current_user
-        to_user = db.query(User).filter(User.username == kudos.to_user).first()
-        if not from_user:
-            raise HTTPException(status_code=404, detail="From user not found.")
-        if not to_user:
-            raise HTTPException(status_code=404, detail="To user not found.")
-        if not from_user.is_active:
-            raise HTTPException(
-                status_code=400,
-                detail="Sorry, you aren't allowed to give kudos from an inactive user.",
-            )
-        if not to_user.is_active:
-            raise HTTPException(
-                status_code=400,
-                detail="Sorry, you aren't allowed to give kudos to an inactive user. "
-                       "Try giving kudos to one of your active teammates instead!",
-            )
-        id1=from_user.id
-        id2=to_user.id
-        if check_too_many_kudos_in_day(db, id1):
-            raise HTTPException(
-                status_code=400,
-                detail="Sorry, you have already gave too many kudos today. "
-                       "wait for tomorrow to continue!",
-            )
-        db_kudos = KudosDB(
-            from_user_id=id1,
-            to_user_id=id2,
-            message=kudos.message,
-            time_created=datetime.now()
-        )
-        db.add(db_kudos)
-        db.flush()  # Ensure db_kudos.id is populated before returning it
-        return {
-            "status": "received",
-            "kudos_id": db_kudos.id
-        }
 
+    from_user = current_user
+    to_user = db.query(User).filter(
+        User.username == kudos.to_user
+    ).first()
+
+    if not from_user:
+        raise HTTPException(404, "From user not found")
+
+    if not to_user:
+        raise HTTPException(404, "To user not found")
+
+    if not from_user.is_active:
+        raise HTTPException(400, "Inactive sender")
+
+    if not to_user.is_active:
+        raise HTTPException(400, "Inactive receiver")
+
+    id1 = from_user.id
+    id2 = to_user.id
+
+    if check_too_many_kudos_in_day(db, id1):
+        raise HTTPException(400, "Too many kudos today")
+
+    db_kudos = KudosDB(
+        from_user_id=id1,
+        to_user_id=id2,
+        message=kudos.message,
+        time_created=datetime.now()
+    )
+
+    db.add(db_kudos)
+
+    db.commit()
+
+    db.refresh(db_kudos)
+
+    return {
+        "status": "received",
+        "kudos_id": db_kudos.id
+    }
 def get_status(username: str, db: SessionLocal):
     user=db.query(User).filter(User.username == username).first()
     if not user:
