@@ -16,8 +16,7 @@ def get_leaderboard(db: SessionLocal):
     leaderboard = (db.query(
         User.username,
         func.count(KudosDB.id).label("score")
-    ).join(
-        KudosDB, User.id == KudosDB.to_user_id
+    ).outerjoin(KudosDB, User.id == KudosDB.to_user_id # LEFT OUTER JOIN, TO INCLUDE USERS WITH 0 KUDOS
     ).filter(User.is_active==True).
         group_by(
         User.id, User.username
