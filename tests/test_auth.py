@@ -10,7 +10,9 @@ from sqlalchemy.exc import IntegrityError
 
 from models_db import Base, User
 from services.services import register_user, login_user, delete_user, get_status
-from security import verify_password
+from security import verify_password, decode_access_token
+from models import UserCreate
+
 
 
 # ----------------------------
@@ -34,14 +36,6 @@ def db_session():
     Base.metadata.drop_all(engine)
 
 
-# ----------------------------
-# helper object for register/login
-# ----------------------------
-class UserInput:
-    def __init__(self, username, password):
-        self.username = username
-        self.password = password
-
 
 # ----------------------------
 # register tests
@@ -49,7 +43,7 @@ class UserInput:
 
 def test_register_success(db_session):
 
-    user = UserInput("alice", "1234")
+    user = UserCreate(username="alice", password="1234")
 
     result = register_user(user, db_session)
 
@@ -62,7 +56,7 @@ def test_register_success(db_session):
 
 def test_password_is_hashed(db_session):
 
-    user = UserInput("bob", "secret")
+    user = UserCreate(username="bob", password="secret")
 
     register_user(user, db_session)
 
@@ -72,18 +66,10 @@ def test_password_is_hashed(db_session):
     assert verify_password("secret", db_user.password_hash)
 
 
-def test_empty_password_not_allowed(db_session):
-
-    user = UserInput("charlie", "")
-
-    with pytest.raises(ValueError):
-        register_user(user, db_session)
-
-
 def test_unique_username(db_session):
 
-    u1 = UserInput("same", "1234")
-    u2 = UserInput("same", "1234")
+    u1 = UserCreate(username="same", password="1234")
+    u2 = UserCreate(username="same", password="1234")
 
     register_user(u1, db_session)
 
@@ -97,7 +83,7 @@ def test_unique_username(db_session):
 
 def test_login_success(db_session):
 
-    user = UserInput("login_user", "1234")
+    user = UserCreate(username="login_user", password="1234")
 
     register_user(user, db_session)
 
@@ -108,9 +94,9 @@ def test_login_success(db_session):
 
 def test_login_wrong_password(db_session):
 
-    register_user(UserInput("bob", "1234"), db_session)
+    register_user(UserCreate(username="bob", password="1234"), db_session)
 
-    wrong = UserInput("bob", "wrong")
+    wrong = UserCreate(username="bob",password= "wrong")
 
     with pytest.raises(Exception):
         login_user(wrong, db_session)
@@ -118,7 +104,7 @@ def test_login_wrong_password(db_session):
 
 def test_login_user_not_found(db_session):
 
-    user = UserInput("ghost", "1234")
+    user = UserCreate(username="ghost", password="1234")
 
     with pytest.raises(Exception):
         login_user(user, db_session)
@@ -130,7 +116,7 @@ def test_login_user_not_found(db_session):
 
 def test_inactive_user_cannot_login(db_session):
 
-    user = UserInput("inactive", "1234")
+    user = UserCreate(username="inactive",password= "1234")
 
     register_user(user, db_session)
 
@@ -149,7 +135,7 @@ def test_inactive_user_cannot_login(db_session):
 
 def test_delete_user_sets_inactive(db_session):
 
-    user = UserInput("to_delete", "1234")
+    user = UserCreate(username="to_delete",password= "1234")
 
     register_user(user, db_session)
 
@@ -166,7 +152,7 @@ def test_delete_user_sets_inactive(db_session):
 
 def test_status_for_new_user(db_session):
 
-    user = UserInput("status_user", "1234")
+    user = UserCreate(username="status_user", password="1234")
 
     register_user(user, db_session)
 
@@ -189,10 +175,21 @@ def test_status_user_not_found(db_session):
 
 def test_default_role_is_user(db_session):
 
-    user = UserInput("role_user", "1234")
+    user = UserCreate(username="role_user",password= "1234")
 
     register_user(user, db_session)
 
     db_user = db_session.query(User).filter_by(username="role_user").first()
 
     assert db_user.role == "user"
+
+def test_jwt_contains_correct_sub(db_session):
+    user = UserCreate(username="jwt_user", password="supersecret")
+    register_user(user, db_session)
+
+    token_data = login_user(user, db_session)
+    token = token_data["access_token"]
+
+    payload = decode_access_token(token)
+
+    assert payload["sub"] == "jwt_user"

@@ -45,16 +45,6 @@ def test_password_hashing(db_session):
     assert verify_password("SuperSecret123", db_user.password_hash)
 
 
-def test_cannot_use_empty_password(db_session):
-    user_data = UserCreate(
-        username="empty_user",
-        password=""
-    )
-
-    with pytest.raises(ValueError):
-        register_user(user_data, db_session)
-
-
 def test_unique_username_constraint(db_session):
     user_data = UserCreate(
         username="secure_user",

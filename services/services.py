@@ -37,7 +37,9 @@ def get_kudos_by_id(kudos_id: int, db: SessionLocal):
     )
     return kudos_res
 
-def delete_kudos_by_id(kudos_id: int, db: SessionLocal):
+def delete_kudos_by_id(kudos_id: int, db: SessionLocal, current_user):
+    if current_user.role != "admin":
+        raise HTTPException(403, "Admin only")
     with db.begin():
         kudos = db.get(KudosDB, kudos_id)
         if not kudos:
@@ -129,14 +131,6 @@ def get_status(username: str, db: SessionLocal):
     }
 
 def register_user(user_data, db):
-    if not user_data.username:
-        raise ValueError("Username cannot be empty")
-    if len(user_data.username) < 3:
-        raise ValueError("Username too short")
-    if not user_data.password:
-        raise ValueError("Password cannot be empty")
-    if len(user_data.password) < 4:
-        raise ValueError("Password too short")
 
     with db.begin():
         hashed = hash_password(user_data.password)
@@ -165,7 +159,9 @@ def login_user(user_data, db):
         "token_type": "bearer"
     }
 
-def delete_user(username: str, db: SessionLocal):
+def delete_user(username: str,current_user, db: SessionLocal):
+    if current_user.role != "admin":
+        raise HTTPException(403, "Admin only")
     with db.begin():
         user = db.query(User).filter(User.username == username).first()
         if not user:
@@ -173,7 +169,9 @@ def delete_user(username: str, db: SessionLocal):
         user.is_active = False
     return {"status": "deleted"}
 
-def get_users_data(db: SessionLocal):
+def get_users_data(db: SessionLocal, current_user):
+    if current_user.role != "admin":
+        raise HTTPException(403, "Admin only")
     users = (
         db.query(User)
         .options(

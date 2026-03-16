@@ -5,6 +5,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from pydantic import ValidationError
+
 
 from models_db import Base, User
 from services.services import register_user, add_kudos
@@ -34,49 +36,38 @@ def db_session():
 # register validation
 # ============================
 
-def test_username_empty(db_session):
+def test_username_empty():
 
-    user = UserCreate(
-        username="",
-        password="1234"
-    )
-
-    with pytest.raises(ValueError):
-        register_user(user, db_session)
+    with pytest.raises(ValidationError):
+        UserCreate(
+            username="",
+            password="1234"
+        )
 
 
-def test_username_too_short(db_session):
+def test_username_too_short():
 
-    user = UserCreate(
-        username="ab",
-        password="1234"
-    )
+    with pytest.raises(ValidationError):
+        UserCreate(
+            username="a",
+            password="1234"
+        )
 
-    with pytest.raises(ValueError):
-        register_user(user, db_session)
+def test_password_empty():
 
+    with pytest.raises(ValidationError):
+        UserCreate(
+            username="alice",
+            password=""
+        )
 
-def test_password_empty(db_session):
+def test_password_too_short():
 
-    user = UserCreate(
-        username="alice",
-        password=""
-    )
-
-    with pytest.raises(ValueError):
-        register_user(user, db_session)
-
-
-def test_password_too_short(db_session):
-
-    user = UserCreate(
-        username="alice",
-        password="1"
-    )
-
-    with pytest.raises(ValueError):
-        register_user(user, db_session)
-
+    with pytest.raises(ValidationError):
+        UserCreate(
+            username="alice",
+            password="1"
+        )
 
 # ============================
 # kudos validation

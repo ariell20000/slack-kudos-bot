@@ -4,11 +4,19 @@ from typing import Optional, Annotated
 from datetime import datetime
 from pydantic import BaseModel, AfterValidator
 
-#function to check if the string is empty or not
 def is_empty(s: str):
     if s.strip() == "":
         raise ValueError("Field cannot be empty")
     return s
+
+def too_short(min_length: int):
+    def validator(s: str):
+        if len(s) < min_length:
+            raise ValueError(
+                f"Field must be at least {min_length} characters long"
+            )
+        return s
+    return validator
 
 # data model for kudos
 class Kudos(BaseModel):
@@ -32,8 +40,8 @@ class UserFullResponse(BaseModel):
 
 # data model for user creation
 class UserCreate(BaseModel):
-    username: str
-    password: str
+    username: Annotated[str,AfterValidator(is_empty), AfterValidator(too_short(2))]
+    password: Annotated[str,AfterValidator(is_empty), AfterValidator(too_short(4))]
 
 # data model for user login
 class UserLogin(BaseModel):
