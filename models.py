@@ -17,6 +17,10 @@ def too_short(min_length: int):
             )
         return s
     return validator
+def contains_no_spaces(s: str):
+    if " " in s:
+        raise ValueError("Field cannot contain spaces")
+    return s
 
 # data model for kudos
 class Kudos(BaseModel):
@@ -40,8 +44,8 @@ class UserFullResponse(BaseModel):
 
 # data model for user creation
 class UserCreate(BaseModel):
-    username: Annotated[str,AfterValidator(is_empty), AfterValidator(too_short(2))]
-    password: Annotated[str,AfterValidator(is_empty), AfterValidator(too_short(4))]
+    username: Annotated[str,AfterValidator(is_empty),AfterValidator(contains_no_spaces), AfterValidator(too_short(2))]
+    password: Annotated[str,AfterValidator(is_empty),AfterValidator(contains_no_spaces), AfterValidator(too_short(4))]
 
 # data model for user login
 class UserLogin(BaseModel):
