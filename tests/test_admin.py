@@ -1,0 +1,86 @@
+# test_admin.py
+
+import sys
+import os
+
+
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from fastapi import HTTPException
+
+
+from models_db import Base, User
+from services.services import delete_user, get_users_data, delete_kudos_by_id
+from security import hash_password
+from models import Kudos
+
+
+@pytest.fixture
+def db_session():
+
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False}
+    )
+
+    Base.metadata.create_all(engine)
+
+    SessionLocal = sessionmaker(bind=engine)
+    session = SessionLocal()
+
+    yield session
+
+    session.close()
+    Base.metadata.drop_all(engine)
+
+@pytest.fixture
+def users(db_session):
+
+    admin = User(
+        username="admin",
+        password_hash=hash_password("1234"),
+        role="admin"
+    )
+
+    alice = User(
+        username="alice",
+        password_hash=hash_password("1234"),
+        role="user"
+    )
+
+    bob = User(
+        username="bob",
+        password_hash=hash_password("1234"),
+        role="user"
+    )
+
+    db_session.add_all([admin, alice, bob])
+    db_session.commit()
+
+    return admin, alice, bob
+
+def test_user_cant_delete_user(db_session, users):
+    admin, alice, bob = users
+
+    with pytest.raises(HTTPException):
+        delete_user("bob", alice, db_session)
+
+def test_only_admin_can_get_users(db_session, users):
+
+    admin, alice, _ = users
+
+    get_users_data(admin, db_session)
+
+    with pytest.raises(HTTPException):
+        get_users_data(alice, db_session)
+
+def test_only_admin_can_delete_kodus(db_session, users):
+
+    admin, alice, bob = users
+    kudos = Kudos(from_user="alice", to_user="bob", message="example")
+    with pytest.raises(HTTPException):
+        delete_kudos_by_id(kudos.kudos_id, alice, db_session)

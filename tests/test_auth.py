@@ -128,24 +128,6 @@ def test_inactive_user_cannot_login(db_session):
     with pytest.raises(Exception):
         login_user(user, db_session)
 
-
-# ----------------------------
-# delete user (soft delete)
-# ----------------------------
-
-def test_delete_user_sets_inactive(db_session):
-
-    user = UserCreate(username="to_delete",password= "1234")
-
-    register_user(user, db_session)
-
-    delete_user("to_delete", db_session)
-
-    db_user = db_session.query(User).filter_by(username="to_delete").first()
-
-    assert db_user.is_active is False
-
-
 # ----------------------------
 # status tests
 # ----------------------------

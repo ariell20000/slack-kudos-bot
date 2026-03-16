@@ -37,7 +37,7 @@ def get_kudos_by_id(kudos_id: int, db: SessionLocal):
     )
     return kudos_res
 
-def delete_kudos_by_id(kudos_id: int, db: SessionLocal, current_user):
+def delete_kudos_by_id(kudos_id: int, current_user, db: SessionLocal):
     if current_user.role != "admin":
         raise HTTPException(403, "Admin only")
     with db.begin():
@@ -169,7 +169,7 @@ def delete_user(username: str,current_user, db: SessionLocal):
         user.is_active = False
     return {"status": "deleted"}
 
-def get_users_data(db: SessionLocal, current_user):
+def get_users_data( current_user, db: SessionLocal):
     if current_user.role != "admin":
         raise HTTPException(403, "Admin only")
     users = (
