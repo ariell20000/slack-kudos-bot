@@ -27,3 +27,4 @@ python-multipart
 sqlalchemy
 pytest
 pyjwt
+pyslack
