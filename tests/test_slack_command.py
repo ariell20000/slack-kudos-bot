@@ -59,31 +59,75 @@ def users(db_session):
 
 def test_recipient_not_exist(client, users):
     sender, _, _ = users
-    response = client.post("/command", data={"user_id": sender.username, "text": "nonexistent_user Hello"})
-    assert response.status_code == 400
-    assert "does not exist" in response.json()["detail"]
+
+    response = client.post(
+        "/command",
+        data={
+            "user_id": sender.username,
+            "text": "kudos nonexistent_user Hello"
+        }
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["response_type"] == "ephemeral"
+    assert "does not exist" in data["text"]
 
 def test_sender_inactive(client, users):
     _, inactive_sender, recipient = users
-    response = client.post("/command", data={"user_id": inactive_sender.username, "text": f"{recipient.username} Hello"})
-    assert response.status_code == 403
-    assert "inactive" in response.json()["detail"]
+
+    response = client.post(
+        "/command",
+        data={
+            "user_id": inactive_sender.username,
+            "text": f"kudos {recipient.username} Hello"
+        }
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["response_type"] == "ephemeral"
+    assert "inactive" in data["text"]
 
 def test_recipient_inactive(client, users, db_session):
     sender, _, recipient = users
-    # Make recipient inactive
+
     recipient.is_active = False
     db_session.commit()
-    response = client.post("/command", data={"user_id": sender.username, "text": f"{recipient.username} Hello"})
-    assert response.status_code == 403
-    assert "inactive" in response.json()["detail"]
+
+    response = client.post(
+        "/command",
+        data={
+            "user_id": sender.username,
+            "text": f"kudos {recipient.username} Hello"
+        }
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["response_type"] == "ephemeral"
+    assert "inactive" in data["text"]
 
 def test_empty_message(client, users):
     sender, _, recipient = users
-    response = client.post("/command", data={"user_id": sender.username, "text": f"{recipient.username} "})
-    assert response.status_code == 400
-    assert "non-empty" in response.json()["detail"]
 
+    response = client.post(
+        "/command",
+        data={
+            "user_id": sender.username,
+            "text": f"kudos {recipient.username}"
+        }
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["response_type"] == "ephemeral"
+    assert "Usage" in data["text"]
+    
 def test_missing_text(client, users):
     sender, _, _ = users
     response = client.post("/command", data={"user_id": sender.username})
