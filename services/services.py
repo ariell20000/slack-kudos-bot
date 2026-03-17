@@ -4,15 +4,17 @@ from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException
-from database import SessionLocal
+from sqlalchemy.orm import Session
+
+from core.logger import logger
 from models_db import KudosDB, User
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from models import KudosResponse, UserFullResponse
 from security import hash_password
 from security import verify_password, create_access_token
 
 
-def get_leaderboard(db: SessionLocal):
+def get_leaderboard(db: Session):
     leaderboard = (db.query(
         User.username,
         func.count(KudosDB.id).label("score")
@@ -23,10 +25,9 @@ def get_leaderboard(db: SessionLocal):
     ).order_by(
         func.count(KudosDB.id).desc()    ).
                    all())
-
     return [{"username": user, "score": score} for user, score in leaderboard]
 
-def get_kudos_by_id(kudos_id: int, db: SessionLocal):
+def get_kudos_by_id(kudos_id: int, db: Session):
     kudos = db.get(KudosDB, kudos_id)
     if not kudos:
         raise HTTPException(status_code=404, detail="Kudos not found.")
@@ -37,17 +38,23 @@ def get_kudos_by_id(kudos_id: int, db: SessionLocal):
     )
     return kudos_res
 
-def delete_kudos_by_id(kudos_id: int, current_user, db: SessionLocal):
+def delete_kudos_by_id(kudos_id: int, current_user, db: Session):
     if current_user.role != "admin":
-        raise HTTPException(403, "Admin only")
-    with db.begin():
-        kudos = db.get(KudosDB, kudos_id)
-        if not kudos:
-            raise HTTPException(status_code=404, detail="Kudos not found.")
-        db.delete(kudos)
+        raise HTTPException(status_code=403,detail= "Admin only")
+    try:
+        with db.begin():
+            kudos = db.get(KudosDB, kudos_id)
+            if not kudos:
+                logger.warning("sender tried to delete kudos that doesnt exists")
+                raise HTTPException(status_code=404, detail="Kudos not found.")
+            db.delete(kudos)
+        logger.info("User %s deleted kudos number - %s", current_user.username, kudos_id)
+    except Exception:
+        logger.exception("Failed to delete kudos number - %s by user %s", kudos_id, current_user.username)
+        raise HTTPException(status_code=500, detail="Internal server error")
     return {"status": "deleted"}
 
-def get_kudos_by_username(username: str, db: SessionLocal):
+def get_kudos_by_username(username: str, db: Session):
     user = db.query(User).filter(User.username == username).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
@@ -61,17 +68,21 @@ def get_kudos_by_username(username: str, db: SessionLocal):
         ))
     return kudos_res
 
-def add_kudos(kudos, current_user, db: SessionLocal):
+def add_kudos(kudos, current_user, db: Session):
     if not kudos.to_user:
-        raise HTTPException(400, "Missing receiver")
+        logger.warning("sender tried to send kudos without receiver")
+        raise HTTPException(status_code=400,detail= "Missing receiver")
 
     if not kudos.message:
-        raise HTTPException(400, "Message cannot be empty")
+        logger.warning("sender tried to send kudos without message")
+        raise HTTPException(status_code=400,detail= "Message cannot be empty")
 
     if len(kudos.message) > 200:
-        raise HTTPException(400, "Message too long")
+        logger.warning("sender tried to send kudos with message that is too long")
+        raise HTTPException(status_code=400,detail= "Message too long")
 
     if kudos.from_user == kudos.to_user:
+        logger.warning("sender tried to send kudos to himself")
         raise HTTPException(
             status_code=400,
             detail="You cannot give kudos to yourself"
@@ -83,41 +94,51 @@ def add_kudos(kudos, current_user, db: SessionLocal):
     ).first()
 
     if not from_user:
-        raise HTTPException(404, "From user not found")
+        logger.warning("sender tried to send kudos but sender not found in db")
+        raise HTTPException(status_code=404,detail= "From user not found")
 
     if not to_user:
-        raise HTTPException(404, "To user not found")
+        logger.warning("sender tried to send kudos but receiver not found in db")
+        raise HTTPException(status_code=404, detail="To user not found")
 
     if not from_user.is_active:
-        raise HTTPException(400, "Inactive sender")
+        logger.warning("sender tried to send kudos but sender is inactive")
+        raise HTTPException(status_code=400, detail="Inactive sender")
 
     if not to_user.is_active:
-        raise HTTPException(400, "Inactive receiver")
+        logger.warning("sender tried to send kudos but receiver is inactive")
+        raise HTTPException(status_code=400, detail="Inactive receiver")
 
     id1 = from_user.id
     id2 = to_user.id
 
     if check_too_many_kudos_in_day(db, id1):
-        raise HTTPException(400, "Too many kudos today")
+        logger.warning("sender tried to send kudos but already sent too many today")
+        raise HTTPException(status_code=400, detail="Too many kudos today")
 
     db_kudos = KudosDB(
         from_user_id=id1,
         to_user_id=id2,
         message=kudos.message,
-        time_created=datetime.now()
+        time_created=datetime.now(timezone.utc)
     )
 
-    db.add(db_kudos)
-
-    db.commit()
-
-    db.refresh(db_kudos)
+    try:
+        db.add(db_kudos)
+        db.commit()
+        db.refresh(db_kudos)
+        logger.info("User %s sent kudos to %s", from_user.username, to_user.username)
+    except Exception as e:
+        logger.exception("Failed to add kudos from %s to %s", from_user.username, to_user.username)
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Internal server error")
 
     return {
         "status": "received",
         "kudos_id": db_kudos.id
     }
-def get_status(username: str, db: SessionLocal):
+
+def get_status(username: str, db: Session):
     user=db.query(User).filter(User.username == username).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
@@ -131,47 +152,57 @@ def get_status(username: str, db: SessionLocal):
     }
 
 def register_user(user_data, db):
-
-    with db.begin():
-        hashed = hash_password(user_data.password)
-        new_user = User(
-            username=user_data.username,
-            password_hash=hashed
-        )
-        db.add(new_user)
+    try:
+        with db.begin():
+            hashed = hash_password(user_data.password)
+            new_user = User(username=user_data.username, password_hash=hashed)
+            db.add(new_user)
+            logger.info("New user registered - %s", user_data.username)
+    except Exception:
+        logger.exception("Failed to register new user %s", user_data.username)
+        raise HTTPException(status_code=500, detail="Internal server error")
     return {"status": "created"}
 
-def login_user(user_data, db):
+def login_user(user_data, db: Session):
     user = db.query(User).filter(User.username == user_data.username).first()
-
     if not user:
+        logger.warning("Login failed for non existing user - %s", user_data.username)
         raise HTTPException(status_code=401, detail="Invalid credentials")
     if not user.is_active:
+        logger.warning("Login failed for non active user - %s", user_data.username)
         raise HTTPException(status_code=403, detail="User is inactive")
-
     if not verify_password(user_data.password, user.password_hash):
+        logger.warning("Login failed for user - %s, wrong password", user_data.username)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     token = create_access_token({"sub": user.username})
-
+    logger.info("User %s logged in", user_data.username)
     return {
         "access_token": token,
         "token_type": "bearer"
     }
 
-def delete_user(username: str,current_user, db: SessionLocal):
+def delete_user(username: str,current_user, db: Session):
     if current_user.role != "admin":
-        raise HTTPException(403, "Admin only")
-    with db.begin():
-        user = db.query(User).filter(User.username == username).first()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found.")
-        user.is_active = False
+        logger.warning("User %s tried to delete user %s but is not admin", current_user.username, username)
+        raise HTTPException(status_code=403, detail="Admin only")
+    try:
+        with db.begin():
+            user = db.query(User).filter(User.username == username).first()
+            if not user:
+                logger.warning("Admin %s tried to delete user %s but user not found", current_user.username, username)
+                raise HTTPException(status_code=404, detail="User not found.")
+            user.is_active = False
+        logger.info("Admin %s deleted user %s", current_user.username, username)
+    except Exception:
+        logger.exception("Failed to delete user %s by admin %s", username, current_user.username)
+        raise HTTPException(status_code=500, detail="Internal server error")
     return {"status": "deleted"}
 
-def get_users_data( current_user, db: SessionLocal):
+def get_users_data( current_user, db: Session):
     if current_user.role != "admin":
-        raise HTTPException(403, "Admin only")
+        logger.warning("User %s tried to access all users data but is not admin", current_user.username)
+        raise HTTPException(status_code=403, detail="Admin only")
     users = (
         db.query(User)
         .options(
@@ -180,9 +211,7 @@ def get_users_data( current_user, db: SessionLocal):
         )
         .all()
     )
-
     users_data = []
-
     for user in users:
         kudos_res=[]
         for k in user.received_kudos:
@@ -198,16 +227,16 @@ def get_users_data( current_user, db: SessionLocal):
          )
 
     )
+    logger.info("Admin %s accessed all users data", current_user.username)
     return users_data
 
 
 
 #function that checks if the user has gave too many kudos in a day, with a default limit of 5
-def check_too_many_kudos_in_day(db: SessionLocal, user_id, k=5):
-    kudosnum = db.query(KudosDB).filter(KudosDB.from_user_id == user_id, func.date(KudosDB.time_created)==date.today()).count()
-    if kudosnum >= k:
-        return True
-    return False
+def check_too_many_kudos_in_day(db: Session, user_id, k=5):
+    today= datetime.now(timezone.utc).date()
+    kudosnum = db.query(KudosDB).filter(KudosDB.from_user_id == user_id, func.date(KudosDB.time_created)==today).count()
+    return kudosnum >= k
 
 def create_user(db, username):
     try:

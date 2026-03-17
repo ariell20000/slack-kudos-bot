@@ -28,3 +28,4 @@ sqlalchemy
 pytest
 pyjwt
 pyslack
+python-dotenv

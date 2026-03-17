@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from core.config import settings
 from services import services
 from services.slack_service import verify_slack_signature
-from services.services import add_kudos
 from core.dependencies import get_db
 from models import Kudos, SlackResponse, UserCreate
 from models_db import User
@@ -31,7 +30,6 @@ async def slack_command(request: Request, db: Session = Depends(get_db)):
 
     if not text:
         raise HTTPException(status_code=400, detail="Missing text")
-
     parts = text.strip().split()
 
     if not parts:
@@ -116,7 +114,7 @@ def handle_kudos(user_id, args, db):
         message=message
     )
 
-    result = add_kudos(kudos, from_user, db)
+    services.add_kudos(kudos, from_user, db)
 
     return SlackResponse(
         response_type="in_channel",
@@ -217,7 +215,7 @@ def handle_delete(user_id, args, db):
         )
 
     try:
-        services.delete_user(username, db, user)
+        services.delete_user(username, user, db)
 
         return SlackResponse(
             response_type="ephemeral",
@@ -229,6 +227,7 @@ def handle_delete(user_id, args, db):
             response_type="ephemeral",
             text=str(e)
         )
+
 def handle_login(args, db):
 
     if len(args) < 2:

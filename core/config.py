@@ -2,6 +2,7 @@
 
 from pydantic_settings import BaseSettings
 
+
 #class for authentication and configuration of requests that hides the secrets keys
 class Settings(BaseSettings):
     SLACK_SIGNING_SECRET: str
