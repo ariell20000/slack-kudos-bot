@@ -3,17 +3,19 @@
 from fastapi import APIRouter, Request, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from core.config import settings
 from services.slack_service import verify_slack_signature
 from services.services import add_kudos
 from core.dependencies import get_db
-from models import Kudos
+from models import Kudos, SlackResponse
 from models_db import User
 router = APIRouter(tags=["Slack"])
 
-@router.post("/command")
+@router.post("/command", response_model=SlackResponse)
 async def slack_command(request: Request, db: Session = Depends(get_db)):
     raw_body = await request.body()
-    # verify_slack_signature(request.headers, raw_body)
+    if settings.VERIFY_SLACK_SIGNATURE:
+        verify_slack_signature(...)
 
     form = await request.form()
     user_id = form.get("user_id")
@@ -55,8 +57,7 @@ async def slack_command(request: Request, db: Session = Depends(get_db)):
 
     result = add_kudos(kudos, from_user, db)
 
-    return {
-        "status": "ok",
-        "detail": f"Kudos sent to {to_user.username}",
-        "kudos_id": result["kudos_id"]
-    }
+    return SlackResponse(
+        response_type="in_channel",
+        text=f"{from_user.username} gave kudos to {to_user.username} \n\"{message}\""
+    )

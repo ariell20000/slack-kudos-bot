@@ -30,6 +30,10 @@ class Kudos(BaseModel):
     kudos_id: Optional[int] = None
     time_created: Optional[datetime] = None
 
+class SlackResponse(BaseModel):
+    response_type: str  # in_channel | ephemeral
+    text: str
+
 # response model for kudos
 class KudosResponse(BaseModel):
     message: str
