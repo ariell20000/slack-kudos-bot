@@ -42,14 +42,15 @@ def delete_kudos_by_id(kudos_id: int, current_user, db: Session):
     if current_user.role != "admin":
         raise HTTPException(status_code=403,detail= "Admin only")
     try:
-        with db.begin():
-            kudos = db.get(KudosDB, kudos_id)
-            if not kudos:
-                logger.warning("sender tried to delete kudos that doesnt exists")
-                raise HTTPException(status_code=404, detail="Kudos not found.")
-            db.delete(kudos)
+        kudos = db.get(KudosDB, kudos_id)
+        if not kudos:
+            logger.warning("sender tried to delete kudos that doesnt exists")
+            raise HTTPException(status_code=404, detail="Kudos not found.")
+        db.delete(kudos)
+        db.commit()
         logger.info("User %s deleted kudos number - %s", current_user.username, kudos_id)
     except Exception:
+        db.rollback()
         logger.exception("Failed to delete kudos number - %s by user %s", kudos_id, current_user.username)
         raise HTTPException(status_code=500, detail="Internal server error")
     return {"status": "deleted"}
@@ -151,16 +152,37 @@ def get_status(username: str, db: Session):
         "is_active": user.is_active
     }
 
-def register_user(user_data, db):
+def register_user(user_data, db: Session):
     try:
-        with db.begin():
-            hashed = hash_password(user_data.password)
-            new_user = User(username=user_data.username, password_hash=hashed)
-            db.add(new_user)
-            logger.info("New user registered - %s", user_data.username)
+        hashed = hash_password(user_data.password)
+        new_user = User(username=user_data.username, password_hash=hashed)
+        db.add(new_user)
+        db.commit()
+        logger.info("New user registered - %s", user_data.username)
+    except IntegrityError:
+
+        db.rollback()
+
+        logger.warning(
+            "Username already exists: %s",
+            user_data.username,
+        )
+
+        raise
+
     except Exception:
-        logger.exception("Failed to register new user %s", user_data.username)
-        raise HTTPException(status_code=500, detail="Internal server error")
+
+        db.rollback()
+
+        logger.exception(
+            "Failed to register new user %s",
+            user_data.username,
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error",
+        )
     return {"status": "created"}
 
 def login_user(user_data, db: Session):
@@ -187,14 +209,15 @@ def delete_user(username: str,current_user, db: Session):
         logger.warning("User %s tried to delete user %s but is not admin", current_user.username, username)
         raise HTTPException(status_code=403, detail="Admin only")
     try:
-        with db.begin():
-            user = db.query(User).filter(User.username == username).first()
-            if not user:
-                logger.warning("Admin %s tried to delete user %s but user not found", current_user.username, username)
-                raise HTTPException(status_code=404, detail="User not found.")
-            user.is_active = False
+        user = db.query(User).filter(User.username == username).first()
+        if not user:
+            logger.warning("Admin %s tried to delete user %s but user not found", current_user.username, username)
+            raise HTTPException(status_code=404, detail="User not found.")
+        user.is_active = False
+        db.commit()
         logger.info("Admin %s deleted user %s", current_user.username, username)
     except Exception:
+        db.rollback()
         logger.exception("Failed to delete user %s by admin %s", username, current_user.username)
         raise HTTPException(status_code=500, detail="Internal server error")
     return {"status": "deleted"}

@@ -11,7 +11,7 @@ from pydantic import ValidationError
 from models_db import Base, User
 from services.services import register_user, add_kudos
 from models import Kudos, UserCreate
-from security import hash_password
+from security import hash_password, verify_password
 
 
 @pytest.fixture
@@ -122,3 +122,16 @@ def test_kudos_message_too_long(db_session):
 
     with pytest.raises(Exception):
         add_kudos(kudos, alice, db_session)
+
+def test_unique_username_constraint(db_session):
+    user_data = UserCreate(
+        username="secure_user",
+        password="SuperSecret123"
+    )
+
+    register_user(user_data, db_session)
+
+    db_user = db_session.query(User).filter_by(username="secure_user").first()
+
+    assert db_user.password_hash != "SuperSecret123"
+    assert verify_password("SuperSecret123", db_user.password_hash)

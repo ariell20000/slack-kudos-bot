@@ -31,19 +31,6 @@ def db_session():
 # ----------------------------
 # Tests
 # ----------------------------
-def test_password_hashing(db_session):
-    user_data = UserCreate(
-        username="secure_user",
-        password="SuperSecret123"
-    )
-
-    register_user(user_data, db_session)
-
-    db_user = db_session.query(User).filter_by(username="secure_user").first()
-
-    assert db_user.password_hash != "SuperSecret123"
-    assert verify_password("SuperSecret123", db_user.password_hash)
-
 
 def test_unique_username_constraint(db_session):
     user_data = UserCreate(

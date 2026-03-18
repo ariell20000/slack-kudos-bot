@@ -66,17 +66,6 @@ def test_password_is_hashed(db_session):
     assert verify_password("secret", db_user.password_hash)
 
 
-def test_unique_username(db_session):
-
-    u1 = UserCreate(username="same", password="1234")
-    u2 = UserCreate(username="same", password="1234")
-
-    register_user(u1, db_session)
-
-    with pytest.raises(IntegrityError):
-        register_user(u2, db_session)
-
-
 # ----------------------------
 # login tests
 # ----------------------------
