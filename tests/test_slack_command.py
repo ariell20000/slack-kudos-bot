@@ -1,5 +1,3 @@
-#tests/test_slack_command.py
-
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -38,9 +36,19 @@ def users(db_session):
     return active_sender, inactive_sender, recipient
 
 # ----------------------------
+# Helper to get text from blocks
+# ----------------------------
+def get_text_from_block(response_data):
+    if "blocks" in response_data and response_data["blocks"]:
+        block = response_data["blocks"][0]
+        if "text" in block and "text" in block["text"]:
+            return block["text"]["text"]
+    return ""
+
+
+# ----------------------------
 # Tests
 # ----------------------------
-
 def test_recipient_not_exist(client, users):
     sender, _, _ = users
 
@@ -56,7 +64,8 @@ def test_recipient_not_exist(client, users):
     data = response.json()
 
     assert data["response_type"] == "ephemeral"
-    assert "does not exist" in data["text"]
+    text_content = get_text_from_block(data)
+    assert "does not exist" in text_content
 
 
 def test_recipient_inactive(client, users, db_session):
@@ -77,7 +86,8 @@ def test_recipient_inactive(client, users, db_session):
     data = response.json()
 
     assert data["response_type"] == "ephemeral"
-    assert "inactive" in data["text"]
+    text_content = get_text_from_block(data)
+    assert "inactive" in text_content
 
 
 def test_sender_inactive(client, users):
@@ -95,8 +105,8 @@ def test_sender_inactive(client, users):
     data = response.json()
 
     assert data["response_type"] == "ephemeral"
-    assert "inactive" in data["text"]
-
+    text_content = get_text_from_block(data)
+    assert "inactive" in text_content
 
 
 def test_empty_message(client, users):
@@ -114,7 +124,9 @@ def test_empty_message(client, users):
     data = response.json()
 
     assert data["response_type"] == "ephemeral"
-    assert "Usage" in data["text"]
+    text_content = get_text_from_block(data)
+    assert "Usage" in text_content
+
 
 def test_missing_text(client, users):
     sender, _, _ = users

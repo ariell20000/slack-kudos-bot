@@ -1,6 +1,6 @@
 #models.py
 
-from typing import Optional, Annotated
+from typing import Optional, Annotated, List, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel, AfterValidator
 
@@ -31,8 +31,9 @@ class Kudos(BaseModel):
     time_created: Optional[datetime] = None
 
 class SlackResponse(BaseModel):
-    response_type: str  # in_channel | ephemeral
-    text: str
+    response_type: str
+    text: Optional[str] = None
+    blocks: Optional[List[Dict[str, Any]]] = None
 
 # response model for kudos
 class KudosResponse(BaseModel):
