@@ -1,4 +1,4 @@
-# slack_service.py
+#services/slack_service.py
 
 import hmac
 import hashlib

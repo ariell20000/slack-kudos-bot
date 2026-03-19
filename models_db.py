@@ -1,4 +1,4 @@
-# models_db.py
+#models_db.py
 
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, CheckConstraint
 from database import Base

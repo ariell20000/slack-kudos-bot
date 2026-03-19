@@ -1,4 +1,4 @@
-# test_auth.py
+#tests/test_auth.py
 import sys
 import os
 

@@ -1,4 +1,4 @@
-#test_validation.py
+#tests/test_validation.py
 
 import sys
 import os

@@ -1,4 +1,4 @@
-# slack.py
+#routers/slack.py
 
 from fastapi import APIRouter, Request, Depends, HTTPException
 from sqlalchemy.orm import Session

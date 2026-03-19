@@ -1,4 +1,4 @@
-# test_slack_command.py
+#tests/test_slack_command.py
 
 import pytest
 from fastapi.testclient import TestClient

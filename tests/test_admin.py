@@ -1,4 +1,4 @@
-# test_admin.py
+#tests/test_admin.py
 
 import sys
 import os
