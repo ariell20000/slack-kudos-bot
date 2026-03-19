@@ -19,23 +19,9 @@ from security import hash_password
 from models import Kudos
 
 
-@pytest.fixture
-def db_session():
-
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False}
-    )
-
-    Base.metadata.create_all(engine)
-
-    SessionLocal = sessionmaker(bind=engine)
-    session = SessionLocal()
-
-    yield session
-
-    session.close()
-    Base.metadata.drop_all(engine)
+# -------------------------------
+# fixtures
+# -------------------------------
 
 @pytest.fixture
 def users(db_session):
@@ -63,20 +49,6 @@ def users(db_session):
 
     return admin, alice, bob
 
-def test_user_cant_delete_user(db_session, users):
-    admin, alice, bob = users
-
-    with pytest.raises(HTTPException):
-        delete_user("bob", alice, db_session)
-
-def test_only_admin_can_get_users(db_session, users):
-
-    admin, alice, _ = users
-
-    get_users_data(admin, db_session)
-
-    with pytest.raises(HTTPException):
-        get_users_data(alice, db_session)
 
 def test_only_admin_can_delete_kodus(db_session, users):
 
@@ -117,6 +89,19 @@ def test_admin_can_delete_user(db_session, users):
     assert user.is_active is False
 
 
+def test_user_cant_delete_user(db_session, users):
+    admin, alice, bob = users
+
+    with pytest.raises(HTTPException):
+        delete_user("bob", alice, db_session)
+
+def test_delete_user_not_found(db_session, users):
+
+    admin, _, _ = users
+
+    with pytest.raises(HTTPException):
+        delete_user("ghost", admin, db_session)
+
 
 def test_get_users_data_returns_list(db_session, users):
 
@@ -126,16 +111,13 @@ def test_get_users_data_returns_list(db_session, users):
 
     assert len(data) >= 1
 
-def test_delete_user_not_found(db_session, users):
+def test_only_admin_can_get_users(db_session, users):
 
-    admin, _, _ = users
+    admin, alice, _ = users
 
-    with pytest.raises(HTTPException):
-        delete_user("ghost", admin, db_session)
-
-def test_delete_kudos_not_found(db_session, users):
-
-    admin, _, _ = users
+    get_users_data(admin, db_session)
 
     with pytest.raises(HTTPException):
-        delete_kudos_by_id(999, admin, db_session)
+        get_users_data(alice, db_session)
+
+

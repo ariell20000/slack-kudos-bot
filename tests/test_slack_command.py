@@ -14,26 +14,12 @@ from core.dependencies import get_db
 
 
 # ----------------------------
-# Fixture: In-memory DB
-# ----------------------------
-@pytest.fixture
-def db_session():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    Base.metadata.create_all(engine)
-    SessionLocal = sessionmaker(bind=engine)
-    session = SessionLocal()
-    yield session
-    session.close()
-    Base.metadata.drop_all(engine)
-
-# ----------------------------
-# Fixture: FastAPI app with Slack router
+# Fixtures
 # ----------------------------
 @pytest.fixture
 def app(db_session):
     app = FastAPI()
     app.include_router(slack_router)
-    # Inject DB dependency
     app.dependency_overrides[get_db] = lambda: db_session
     return app
 
@@ -41,9 +27,7 @@ def app(db_session):
 def client(app):
     return TestClient(app)
 
-# ----------------------------
-# Fixture: create users
-# ----------------------------
+
 @pytest.fixture
 def users(db_session):
     active_sender = User(username="alice", password_hash="hashed", role="user", is_active=True)
@@ -74,22 +58,6 @@ def test_recipient_not_exist(client, users):
     assert data["response_type"] == "ephemeral"
     assert "does not exist" in data["text"]
 
-def test_sender_inactive(client, users):
-    _, inactive_sender, recipient = users
-
-    response = client.post(
-        "/command",
-        data={
-            "user_id": inactive_sender.username,
-            "text": f"kudos {recipient.username} Hello"
-        }
-    )
-
-    assert response.status_code == 200
-    data = response.json()
-
-    assert data["response_type"] == "ephemeral"
-    assert "inactive" in data["text"]
 
 def test_recipient_inactive(client, users, db_session):
     sender, _, recipient = users
@@ -111,6 +79,26 @@ def test_recipient_inactive(client, users, db_session):
     assert data["response_type"] == "ephemeral"
     assert "inactive" in data["text"]
 
+
+def test_sender_inactive(client, users):
+    _, inactive_sender, recipient = users
+
+    response = client.post(
+        "/command",
+        data={
+            "user_id": inactive_sender.username,
+            "text": f"kudos {recipient.username} Hello"
+        }
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["response_type"] == "ephemeral"
+    assert "inactive" in data["text"]
+
+
+
 def test_empty_message(client, users):
     sender, _, recipient = users
 
@@ -127,7 +115,7 @@ def test_empty_message(client, users):
 
     assert data["response_type"] == "ephemeral"
     assert "Usage" in data["text"]
-    
+
 def test_missing_text(client, users):
     sender, _, _ = users
     response = client.post("/command", data={"user_id": sender.username})

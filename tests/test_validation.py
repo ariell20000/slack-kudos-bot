@@ -1,3 +1,5 @@
+#test_validation.py
+
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -14,22 +16,9 @@ from models import Kudos, UserCreate
 from security import hash_password, verify_password
 
 
-@pytest.fixture
-def db_session():
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False}
-    )
-
-    Base.metadata.create_all(engine)
-
-    SessionLocal = sessionmaker(bind=engine)
-    session = SessionLocal()
-
-    yield session
-
-    session.close()
-    Base.metadata.drop_all(engine)
+# ----------------------------
+# Tests
+# ----------------------------
 
 
 # ============================
