@@ -209,7 +209,7 @@ def handle_leaderboard(db):
         blocks = [{"type": "header", "text": {"type": "plain_text", "text": "🏆 Leaderboard", "emoji": True}}]
 
         for rank, (username, count) in enumerate(data, start=1):
-            emoji = "🔥" if rank == 1 else "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉" if rank == 3 else ""
+            emoji = "🔥" if rank == 1 else "🥇" if rank == 2 else "🥈" if rank == 3 else "🥉" if rank == 4 else ""
             blocks.append({
                 "type": "section",
                 "text": {"type": "mrkdwn", "text": f"{emoji} *{rank}. {username}* — {count} kudos"}
