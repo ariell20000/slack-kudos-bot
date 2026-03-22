@@ -25,12 +25,15 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     received_kudos = relationship("KudosDB", foreign_keys=[KudosDB.to_user_id], back_populates="to_user")
     given_kudos = relationship("KudosDB", foreign_keys=[KudosDB.from_user_id], back_populates="from_user")
-    password_hash = Column(String, nullable=False)
+    slack_id = Column(String, unique=True, nullable=True)
+    password_hash = Column(String, nullable=True)
+    auth_provider = Column(String, default="local")  # local / slack
     role = Column(String, default="user")  # user / admin
     __table_args__ = (
-        CheckConstraint("LENGTH(password_hash) > 0", name="password_not_empty"),
-    )
-
+        CheckConstraint(
+            "(auth_provider = 'slack') OR (password_hash IS NOT NULL AND LENGTH(password_hash) > 0)",
+            name="password_required_for_local"
+        ),)
 
 
 

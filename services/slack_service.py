@@ -38,29 +38,23 @@ def verify_slack_signature(headers, body: bytes):
 
 
 def handle_command(form, db: Session):
-    user_id = form.get("user_id")
-    if not user_id:
-        return error_response("Missing user_id")
+    slack_id = form.get("user_id")
+    username = form.get("user_name")
 
-    text = form.get("text")
-    if not text:
-        raise HTTPException(status_code=400, detail="Missing text")
+    if not slack_id:
+        return error_response("Missing slack_id")
 
-    parts = text.strip().split()
-    if not parts:
-        return error_response("Empty command")
-
-    command = parts[0].lower()
-    args = parts[1:]
+    command = form.get("command", "").lstrip("/").lower()
+    args = form.get("text", "").split()
 
     if command == "kudos":
-        return handle_kudos(user_id, args, db)
+        return handle_kudos(slack_id, username, args, db)
     elif command == "register":
         return handle_register(args, db)
     elif command == "users":
-        return handle_users(user_id, db)
+        return handle_users(slack_id, db)
     elif command == "delete":
-        return handle_delete(user_id, args, db)
+        return handle_delete(slack_id, args, db)
     elif command == "login":
         return handle_login(args, db)
     elif command == "leaderboard":
@@ -91,41 +85,71 @@ def success_response(message: str):
 
 # ---------------- Command handlers ----------------
 
-def handle_kudos(user_id, args, db):
+def handle_kudos(slack_id, username, args, db):
+
     if len(args) < 2:
         return error_response("Usage: kudos <username> <message>")
 
     to_username = args[0]
     message = " ".join(args[1:])
 
-    from_user = db.query(User).filter(User.username == user_id).first()
-    if not from_user:
-        return error_response("Unknown sender")
+    # login / create user via Slack auth
+    token = services.login_slack_user(db, slack_id, username)
+
+    from_user = db.query(User).filter(User.slack_id == slack_id).first()
+
     if not from_user.is_active:
         return error_response("Sender is inactive")
 
     to_user = db.query(User).filter(User.username == to_username).first()
+
     if not to_user:
         return error_response(f"User {to_username} does not exist")
+
     if not to_user.is_active:
         return error_response(f"User {to_username} is inactive")
 
-    kudos = Kudos(from_user=from_user.username, to_user=to_user.username, message=message)
+    kudos = Kudos(
+        from_user=from_user.username,
+        to_user=to_user.username,
+        message=message,
+    )
+
     services.add_kudos(kudos, from_user, db)
 
     return {
         "response_type": "in_channel",
         "blocks": [
-            {"type": "header", "text": {"type": "plain_text", "text": "🎉 Kudos Sent!", "emoji": True}},
-            {"type": "section", "fields": [
-                {"type": "mrkdwn", "text": f"*From:*\n{from_user.username}"},
-                {"type": "mrkdwn", "text": f"*To:*\n{to_user.username}"}
-            ]},
-            {"type": "section", "text": {"type": "mrkdwn", "text": f"*Message:*\n>{message}"}},
-            {"type": "context", "elements": [{"type": "mrkdwn", "text": "Keep spreading positivity! 💛"}]}
-        ]
+            {
+                "type": "header",
+                "text": {
+                    "type": "plain_text",
+                    "text": "🎉 Kudos Sent!",
+                    "emoji": True,
+                },
+            },
+            {
+                "type": "section",
+                "fields": [
+                    {"type": "mrkdwn", "text": f"*From:*\n{from_user.username}"},
+                    {"type": "mrkdwn", "text": f"*To:*\n{to_user.username}"},
+                ],
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"*Message:*\n>{message}",
+                },
+            },
+            {
+                "type": "context",
+                "elements": [
+                    {"type": "mrkdwn", "text": "Keep spreading positivity! 💛"}
+                ],
+            },
+        ],
     }
-
 
 def handle_register(args, db):
     if len(args) < 2:
@@ -142,38 +166,60 @@ def handle_register(args, db):
         return error_response(str(e))
 
 
-def handle_users(user_id, db):
-    user = db.query(User).filter(User.username == user_id).first()
+def handle_users(slack_id, db):
+    user = db.query(User).filter(User.slack_id == slack_id).first()
+
     if not user:
         return error_response("Unknown user")
+
     if user.role != "admin":
         return error_response("Admin only command")
 
     try:
-        data = services.get_users_data(db, user)
-        lines = [f"{u.username} | active={u.is_active} | kudos={len(u.kudos_received)}" for u in data]
+        data = services.get_users_data(user, db)
+
+        lines = [
+            f"{u.username} | active={u.is_active} | kudos={len(u.kudos_received)}"
+            for u in data
+        ]
+
         return {
             "response_type": "ephemeral",
-            "blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": "\n".join(lines)}}]
+            "blocks": [
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": "\n".join(lines),
+                    },
+                }
+            ],
         }
+
     except Exception as e:
         return error_response(str(e))
 
 
-def handle_delete(user_id, args, db):
+def handle_delete(slack_id, args, db):
+
     if len(args) < 1:
         return error_response("Usage: delete <username>")
 
     username = args[0]
-    user = db.query(User).filter(User.username == user_id).first()
+
+    user = db.query(User).filter(User.slack_id == slack_id).first()
+
     if not user:
         return error_response("Unknown user")
+
     if user.role != "admin":
         return error_response("Admin only command")
 
     try:
         services.delete_user(username, user, db)
+
         return success_response(f"User *{username}* deleted")
+
     except Exception as e:
         return error_response(str(e))
 

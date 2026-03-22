@@ -155,10 +155,20 @@ def get_status(username: str, db: Session):
 def register_user(user_data, db: Session):
     try:
         hashed = hash_password(user_data.password)
-        new_user = User(username=user_data.username, password_hash=hashed)
+
+        new_user = User(
+            username=user_data.username,
+            password_hash=hashed,
+            auth_provider="local",
+            role="user",
+            is_active=True,
+        )
+
         db.add(new_user)
         db.commit()
+
         logger.info("New user registered - %s", user_data.username)
+
     except IntegrityError:
 
         db.rollback()
@@ -183,22 +193,32 @@ def register_user(user_data, db: Session):
             status_code=500,
             detail="Internal server error",
         )
+
     return {"status": "created"}
 
 def login_user(user_data, db: Session):
     user = db.query(User).filter(User.username == user_data.username).first()
+
     if not user:
         logger.warning("Login failed for non existing user - %s", user_data.username)
         raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    if user.auth_provider != "local":
+        logger.warning("Login attempt for slack user - %s", user_data.username)
+        raise HTTPException(status_code=400, detail="Use Slack login")
+
     if not user.is_active:
         logger.warning("Login failed for non active user - %s", user_data.username)
         raise HTTPException(status_code=403, detail="User is inactive")
+
     if not verify_password(user_data.password, user.password_hash):
         logger.warning("Login failed for user - %s, wrong password", user_data.username)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     token = create_access_token({"sub": user.username})
+
     logger.info("User %s logged in", user_data.username)
+
     return {
         "access_token": token,
         "token_type": "bearer"
@@ -273,3 +293,27 @@ def create_user(db, username):
         db.rollback()
         raise HTTPException(status_code=400, detail="User already exists")
 
+def login_slack_user(db, slack_id: str, username: str):
+
+    user = db.query(User).filter(User.slack_id == slack_id).first()
+
+    if not user:
+
+        user = User(
+            username=username,
+            slack_id=slack_id,
+            auth_provider="slack",
+            role="user",
+            is_active=True,
+        )
+
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Inactive user")
+
+    token = create_access_token({"sub": user.username})
+
+    return token
