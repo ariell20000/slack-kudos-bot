@@ -317,3 +317,27 @@ def login_slack_user(db, slack_id: str, username: str):
     token = create_access_token({"sub": user.username})
 
     return token
+
+def get_user_by_slack_id(db, slack_id: str):
+
+    user = db.query(User).filter(User.slack_id == slack_id).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Inactive user")
+
+    return user
+
+def get_user_by_username(db, username: str):
+
+    user = db.query(User).filter(User.username == username).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Inactive user")
+
+    return user

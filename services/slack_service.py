@@ -6,6 +6,7 @@ from time import time
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from core.dependencies import get_current_user
 from models import SlackResponse, UserCreate, Kudos
 from models_db import User
 from core.config import settings
@@ -86,28 +87,23 @@ def success_response(message: str):
 # ---------------- Command handlers ----------------
 
 def handle_kudos(slack_id, username, args, db):
-
     if len(args) < 2:
         return error_response("Usage: kudos <username> <message>")
 
     to_username = args[0]
     message = " ".join(args[1:])
 
-    # login / create user via Slack auth
+    # Login / create user via Slack auth, נשמר טוקן למקרה שצריך
     token = services.login_slack_user(db, slack_id, username)
-
     from_user = db.query(User).filter(User.slack_id == slack_id).first()
 
     if not from_user.is_active:
         return error_response("Sender is inactive")
 
-    to_user = db.query(User).filter(User.username == to_username).first()
-
-    if not to_user:
-        return error_response(f"User {to_username} does not exist")
-
-    if not to_user.is_active:
-        return error_response(f"User {to_username} is inactive")
+    try:
+        to_user = services.get_user_by_username(db, to_username)
+    except Exception as e:
+        return error_response(str(e))
 
     kudos = Kudos(
         from_user=from_user.username,
@@ -117,39 +113,7 @@ def handle_kudos(slack_id, username, args, db):
 
     services.add_kudos(kudos, from_user, db)
 
-    return {
-        "response_type": "in_channel",
-        "blocks": [
-            {
-                "type": "header",
-                "text": {
-                    "type": "plain_text",
-                    "text": "🎉 Kudos Sent!",
-                    "emoji": True,
-                },
-            },
-            {
-                "type": "section",
-                "fields": [
-                    {"type": "mrkdwn", "text": f"*From:*\n{from_user.username}"},
-                    {"type": "mrkdwn", "text": f"*To:*\n{to_user.username}"},
-                ],
-            },
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"*Message:*\n>{message}",
-                },
-            },
-            {
-                "type": "context",
-                "elements": [
-                    {"type": "mrkdwn", "text": "Keep spreading positivity! 💛"}
-                ],
-            },
-        ],
-    }
+    return success_response(f"Kudos sent from {from_user.username} to {to_user.username} 🎉\nToken: {token}")
 
 def handle_register(args, db):
     if len(args) < 2:
@@ -236,13 +200,8 @@ def handle_login(args, db):
         return error_response("Invalid credentials")
 
     token = create_access_token({"sub": user.username})
-    return {
-        "response_type": "ephemeral",
-        "blocks": [
-            {"type": "section", "text": {"type": "mrkdwn", "text": "🔑 Login successful. Here is your token:"}},
-            {"type": "section", "text": {"type": "plain_text", "text": token}}
-        ]
-    }
+
+    return success_response(f"🔑 Login successful. Here is your token:\n{token}")
 
 
 def handle_leaderboard(db):
