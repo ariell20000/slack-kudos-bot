@@ -20,5 +20,14 @@ def add_kudos(
 
 
 @router.get("/leaderboard")
-def get_leaderboard(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return services.get_leaderboard(db, current_user)
+def get_leaderboard(db: Session = Depends(get_db)):
+    return services.get_leaderboard(db)
+
+@router.get("/kudos/mykudos")
+def my_kudos_local(username: str, db: Session = Depends(get_db)):
+    user = services.get_user_by_username(db, username)
+    return services.get_kudos_by_username(user.username, db)
+
+@router.get("/kudos/mystatus")
+def my_status_local(username: str, db: Session = Depends(get_db)):
+    return services.get_status(username, db)
