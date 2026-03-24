@@ -156,6 +156,9 @@ def get_status(username: str, db: Session):
     }
 
 def register_user(user_data, db: Session):
+    user = db.query(User).filter(User.username == user_data.username).first()
+    if user:
+        raise HTTPException(status_code=400, detail="Username already exists")
     try:
         hashed = hash_password(user_data.password)
 
@@ -216,7 +219,7 @@ def login_user(user_data, db: Session):
 
     if not verify_password(user_data.password, user.password_hash):
         logger.warning("Login failed for user - %s, wrong password", user_data.username)
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(status_code=401, detail="Invalid details")
 
     token = create_access_token({"sub": user.username})
 
