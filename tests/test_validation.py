@@ -5,12 +5,10 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from pydantic import ValidationError
 
 
-from models_db import Base, User
+from models_db import User
 from services.services import register_user, add_kudos
 from models import Kudos, UserCreate
 from security import hash_password, verify_password

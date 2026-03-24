@@ -1,13 +1,9 @@
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 
-from models_db import Base, User, KudosDB
+from models_db import User
 from routers.slack import router as slack_router
-from models import Kudos
-from services.services import add_kudos
 from core.dependencies import get_db
 
 

@@ -1,12 +1,12 @@
 #routers/slack.py
 
-from fastapi import APIRouter, Request, Depends, HTTPException
+from fastapi import APIRouter, Request, Depends
 from sqlalchemy.orm import Session
 
 from core.config import settings
 from services.slack_service import verify_slack_signature, handle_command
 from core.dependencies import get_db
-from models import Kudos, SlackResponse, UserCreate
+from models import  SlackResponse
 
 router = APIRouter(tags=["Slack"])
 

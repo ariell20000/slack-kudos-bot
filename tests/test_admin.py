@@ -8,12 +8,10 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from fastapi import HTTPException
 
 
-from models_db import Base, User
+from models_db import User
 from services.services import delete_user, get_users_data, delete_kudos_by_id, add_kudos
 from security import hash_password
 from models import Kudos

@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 
 from core.logger import logger
 from models_db import KudosDB, User
-from datetime import datetime, date, timezone
-from models import KudosResponse, UserFullResponse
+from datetime import datetime, timezone
+from models import KudosResponse, UserFullResponse, Kudos
 from security import hash_password
 from security import verify_password, create_access_token
 
@@ -72,58 +72,53 @@ def get_kudos_by_username(username: str, db: Session):
         ))
     return kudos_res
 
-def add_kudos(kudos, current_user, db: Session):
-    if not kudos.to_user:
-        logger.warning("sender tried to send kudos without receiver")
-        raise HTTPException(status_code=400,detail= "Missing receiver")
+def add_kudos(kudos_request: Kudos, from_user: User, db: Session):
+    """
+    Add a kudos from `from_user` to the target user specified in `kudos_request`.
 
-    if not kudos.message:
-        logger.warning("sender tried to send kudos without message")
-        raise HTTPException(status_code=400,detail= "Message cannot be empty")
+    Validations:
+    - Message must exist and be <= 200 chars.
+    - Cannot send kudos to self.
+    - Both users must exist and be active.
+    - User cannot exceed daily kudos limit (default 5/day).
+    """
+    if not kudos_request.to_user:
+        logger.warning("Sender %s tried to send kudos without receiver", from_user.username)
+        raise HTTPException(status_code=400, detail="Missing receiver")
 
-    if len(kudos.message) > 200:
-        logger.warning("sender tried to send kudos with message that is too long")
-        raise HTTPException(status_code=400,detail= "Message too long")
+    if not kudos_request.message:
+        logger.warning("Sender %s tried to send kudos without message", from_user.username)
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
 
-    if kudos.from_user == kudos.to_user:
-        logger.warning("sender tried to send kudos to himself")
-        raise HTTPException(
-            status_code=400,
-            detail="You cannot give kudos to yourself"
-        )
+    if len(kudos_request.message) > 200:
+        logger.warning("Sender %s tried to send kudos with too long message", from_user.username)
+        raise HTTPException(status_code=400, detail="Message too long")
 
-    from_user = current_user
-    to_user = db.query(User).filter(
-        User.username == kudos.to_user
-    ).first()
+    if from_user.username == kudos_request.to_user:
+        logger.warning("Sender %s tried to send kudos to self", from_user.username)
+        raise HTTPException(status_code=400, detail="You cannot give kudos to yourself")
 
-    if not from_user:
-        logger.warning("sender tried to send kudos but sender not found in db")
-        raise HTTPException(status_code=404,detail= "From user not found")
-
+    to_user = db.query(User).filter(User.username == kudos_request.to_user).first()
     if not to_user:
-        logger.warning("sender tried to send kudos but receiver not found in db")
-        raise HTTPException(status_code=404, detail="To user not found")
+        logger.warning("Sender %s tried to send kudos but receiver not found", from_user.username)
+        raise HTTPException(status_code=404, detail="Receiver not found")
 
     if not from_user.is_active:
-        logger.warning("sender tried to send kudos but sender is inactive")
+        logger.warning("Inactive sender %s tried to send kudos", from_user.username)
         raise HTTPException(status_code=400, detail="Inactive sender")
 
     if not to_user.is_active:
-        logger.warning("sender tried to send kudos but receiver is inactive")
+        logger.warning("Sender %s tried to send kudos to inactive user %s", from_user.username, to_user.username)
         raise HTTPException(status_code=400, detail="Inactive receiver")
 
-    id1 = from_user.id
-    id2 = to_user.id
-
-    if check_too_many_kudos_in_day(db, id1):
-        logger.warning("sender tried to send kudos but already sent too many today")
+    if check_too_many_kudos_in_day(db, from_user.id):
+        logger.warning("Sender %s reached daily kudos limit", from_user.username)
         raise HTTPException(status_code=400, detail="Too many kudos today")
 
     db_kudos = KudosDB(
-        from_user_id=id1,
-        to_user_id=id2,
-        message=kudos.message,
+        from_user_id=from_user.id,
+        to_user_id=to_user.id,
+        message=kudos_request.message,
         time_created=datetime.now(timezone.utc)
     )
 
@@ -133,14 +128,11 @@ def add_kudos(kudos, current_user, db: Session):
         db.refresh(db_kudos)
         logger.info("User %s sent kudos to %s", from_user.username, to_user.username)
     except Exception as e:
-        logger.exception("Failed to add kudos from %s to %s", from_user.username, to_user.username)
         db.rollback()
+        logger.exception("Failed to add kudos from %s to %s", from_user.username, to_user.username)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-    return {
-        "status": "received",
-        "kudos_id": db_kudos.id
-    }
+    return {"status": "received", "kudos_id": db_kudos.id}
 
 def get_status(username: str, db: Session):
     user=db.query(User).filter(User.username == username).first()

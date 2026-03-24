@@ -4,10 +4,8 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from datetime import datetime
-from models_db import Base, User, KudosDB
+
+from models_db import  User, KudosDB
 from models import Kudos
 from services.services import add_kudos, get_leaderboard, get_status
 

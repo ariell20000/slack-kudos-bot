@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from core.logger import logger
-from models import Kudos
+from models import Kudos, KudosRequest
 from core.config import settings
 from services import services
 
@@ -91,45 +91,10 @@ def success_response(message: str):
 
 # ---------------- Command handlers ----------------
 
-def handle_kudos(slack_id, username, args, db):
-    if len(args) < 2:
-        return error_response("Usage: kudos <username> <message>")
-
-    to_username = args[0]
-    message = " ".join(args[1:])
+def handle_kudos(slack_id, username, form: KudosRequest, db):
     from_user = services.login_slack_user(db, slack_id, username)
-
-    if not from_user.is_active:
-        return error_response("Sender is inactive")
-
-    if from_user.username == to_username:
-        return error_response("You cannot give kudos to yourself")
-
-    try:
-        to_user = services.get_user_by_username(db, to_username)
-    except Exception as e:
-        return error_response(str(e))
-
-    kudos = Kudos(
-        from_user=from_user.username,
-        to_user=to_user.username,
-        message=message,
-    )
-    logger.info("Slack command: kudos from %s to %s", from_user.username, to_user.username)
-    services.add_kudos(kudos, from_user, db)
-
-    return {
-        "response_type": "ephemeral",
-        "blocks": [
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"Kudos sent from {from_user.username} to {to_user.username} 🎉"
-                }
-            }
-        ]
-    }
+    services.add_kudos(form, from_user, db)
+    return success_response(f"Kudos sent from {from_user.username} to {form.to_user}")
 
 
 def handle_users(slack_id, db, username):

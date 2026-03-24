@@ -2,7 +2,8 @@
 
 from typing import Optional, Annotated, List, Dict, Any
 from datetime import datetime
-from pydantic import BaseModel, AfterValidator
+from pydantic import BaseModel, AfterValidator, Field
+
 
 def is_empty(s: str):
     if s.strip() == "":
@@ -56,3 +57,7 @@ class UserCreate(BaseModel):
 class UserLogin(BaseModel):
     username: str
     password: str
+
+class KudosRequest(BaseModel):
+    to_user: str = Field(..., min_length=1)
+    message: str = Field(..., min_length=1, max_length=200)

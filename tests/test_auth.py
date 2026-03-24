@@ -7,11 +7,8 @@ from fastapi import HTTPException
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.exc import IntegrityError
 
-from models_db import Base, User
+from models_db import User
 from services.services import register_user, login_user, delete_user, get_status
 from security import verify_password, decode_access_token
 from models import UserCreate
