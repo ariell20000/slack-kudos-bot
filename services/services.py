@@ -39,7 +39,10 @@ def get_kudos_by_id(kudos_id: int, db: Session):
     return kudos_res
 
 def delete_kudos_by_id(kudos_id: int, current_user, db: Session):
-    if current_user.role != "admin":
+    try:
+        require_admin(current_user)
+    except Exception as e:
+        logger.warning("User %s tried to delete Kudos %s but is not admin", current_user.username, kudos_id)
         raise HTTPException(status_code=403,detail= "Admin only")
     try:
         kudos = db.get(KudosDB, kudos_id)
@@ -225,7 +228,9 @@ def login_user(user_data, db: Session):
     }
 
 def delete_user(username: str,current_user, db: Session):
-    if current_user.role != "admin":
+    try:
+        require_admin(current_user)
+    except Exception as e:
         logger.warning("User %s tried to delete user %s but is not admin", current_user.username, username)
         raise HTTPException(status_code=403, detail="Admin only")
     try:
@@ -243,7 +248,9 @@ def delete_user(username: str,current_user, db: Session):
     return {"status": "deleted"}
 
 def get_users_data( current_user, db: Session):
-    if current_user.role != "admin":
+    try:
+        require_admin(current_user)
+    except Exception as e:
         logger.warning("User %s tried to access all users data but is not admin", current_user.username)
         raise HTTPException(status_code=403, detail="Admin only")
     users = (
@@ -294,11 +301,8 @@ def create_user(db, username):
         raise HTTPException(status_code=400, detail="User already exists")
 
 def login_slack_user(db, slack_id: str, username: str):
-
     user = db.query(User).filter(User.slack_id == slack_id).first()
-
     if not user:
-
         user = User(
             username=username,
             slack_id=slack_id,
@@ -310,20 +314,9 @@ def login_slack_user(db, slack_id: str, username: str):
         db.add(user)
         db.commit()
         db.refresh(user)
-
+        logger.info("new user created automatically by slack - %s", user.username)
     if not user.is_active:
-        raise HTTPException(status_code=403, detail="Inactive user")
-
-    return user
-
-def get_user_by_slack_id(db, slack_id: str):
-
-    user = db.query(User).filter(User.slack_id == slack_id).first()
-
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    if not user.is_active:
+        logger.warning("slack user %s tried to login but is not active", slack_id)
         raise HTTPException(status_code=403, detail="Inactive user")
 
     return user
@@ -340,9 +333,10 @@ def get_user_by_username(db, username: str):
 
     return user
 
-def promote_user(username: str, db: Session):
+def promote_user(username: str, current_user, db: Session):
 
     user = db.query(User).filter(User.username == username).first()
+    require_admin(current_user)
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -351,7 +345,7 @@ def promote_user(username: str, db: Session):
         raise HTTPException(status_code=400, detail="User inactive")
 
     user.role = "admin"
-
+    logger.info("User %s promoted to admin", username)
     try:
         db.commit()
     except Exception:
@@ -359,3 +353,7 @@ def promote_user(username: str, db: Session):
         raise HTTPException(status_code=500, detail="Failed to promote user")
 
     return {"status": "promoted"}
+
+def require_admin(user):
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")

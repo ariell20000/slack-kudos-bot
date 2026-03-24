@@ -6,11 +6,9 @@ from time import time
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from core.dependencies import get_current_user
-from models import SlackResponse, UserCreate, Kudos
-from models_db import User
+from core.logger import logger
+from models import Kudos
 from core.config import settings
-from security import verify_password, create_access_token
 from services import services
 
 
@@ -19,9 +17,11 @@ def verify_slack_signature(headers, body: bytes):
     slack_timestamp = headers.get("X-Slack-Request-Timestamp")
 
     if not slack_signature or not slack_timestamp:
+        logger.warning("failed to verify slack signature")
         raise HTTPException(status_code=400, detail="Missing Slack headers")
 
     if abs(time() - int(slack_timestamp)) > 60 * 5:
+        logger.warning("failed to verify slack signature because request timed out")
         raise HTTPException(status_code=400, detail="Request too old")
 
     basestring = f"v0:{slack_timestamp}:{body.decode('utf-8')}".encode("utf-8")
@@ -33,6 +33,7 @@ def verify_slack_signature(headers, body: bytes):
     ).hexdigest()
 
     if not hmac.compare_digest(computed_signature, slack_signature):
+        logger.warning("failed to verify slack signature because invalid slack signature")
         raise HTTPException(status_code=403, detail="Invalid Slack signature")
 
     return True
@@ -50,22 +51,20 @@ def handle_command(form, db: Session):
 
     if command == "kudos":
         return handle_kudos(slack_id, username, args, db)
-    elif command == "register":
-        return handle_register(args, db)
     elif command == "users":
-        return handle_users(slack_id, db)
+        return handle_users(slack_id, db, username)
     elif command == "delete":
-        return handle_delete(slack_id, args, db)
+        return handle_delete(slack_id, args, db, username)
     elif command == "leaderboard":
         return handle_leaderboard(db)
     elif command == "mystatus":
-        return handle_status(slack_id, db)
+        return handle_status(slack_id, db, username)
     elif command == "mykudos":
-        return handle_mykudos(slack_id, db)
+        return handle_mykudos(slack_id, db, username)
     elif command == "help":
         return handle_help()
     elif command == "promote":
-        return handle_promote(slack_id, args, db)
+        return handle_promote(slack_id, args, db, username)
     else:
         return error_response(f"Unknown command: {command}")
 
@@ -116,7 +115,7 @@ def handle_kudos(slack_id, username, args, db):
         to_user=to_user.username,
         message=message,
     )
-
+    logger.info("Slack command: kudos from %s to %s", from_user.username, to_user.username)
     services.add_kudos(kudos, from_user, db)
 
     return {
@@ -132,30 +131,12 @@ def handle_kudos(slack_id, username, args, db):
         ]
     }
 
-def handle_register(args, db):
-    if len(args) < 2:
-        return error_response("Usage: register <username> <password>")
 
-    username = args[0]
-    password = args[1]
-
+def handle_users(slack_id, db, username):
     try:
-        user = UserCreate(username=username, password=password)
-        services.register_user(user, db)
-        return success_response(f"User *{username}* registered successfully!")
+        user = services.login_slack_user(db, slack_id, username)
     except Exception as e:
         return error_response(str(e))
-
-
-def handle_users(slack_id, db):
-    user = db.query(User).filter(User.slack_id == slack_id).first()
-
-    if not user:
-        return error_response("Unknown user")
-
-    if user.role != "admin":
-        return error_response("Admin only command")
-
     try:
         data = services.get_users_data(user, db)
 
@@ -163,7 +144,7 @@ def handle_users(slack_id, db):
             f"{u.username} | active={u.is_active} | kudos={len(u.kudos_received)}"
             for u in data
         ]
-
+        logger.info("slack command: user %s got users data", username)
         return {
             "response_type": "ephemeral",
             "blocks": [
@@ -181,50 +162,25 @@ def handle_users(slack_id, db):
         return error_response(str(e))
 
 
-def handle_delete(slack_id, args, db):
+def handle_delete(slack_id, args, db, sender_name):
 
     if len(args) < 1:
         return error_response("Usage: delete <username>")
 
     username = args[0]
 
-    user = db.query(User).filter(User.slack_id == slack_id).first()
-
-    if not user:
-        return error_response("Unknown user")
-
-    if user.role != "admin":
-        return error_response("Admin only command")
-
+    try:
+        user = services.login_slack_user(db, slack_id, sender_name)
+    except Exception as e:
+        return error_response(str(e))
     try:
         services.delete_user(username, user, db)
-
+        logger.info("slack command: user %s deleted user %s", user.username, username)
         return success_response(f"User *{username}* deleted")
 
     except Exception as e:
         return error_response(str(e))
 
-
-def handle_login(args, db):
-    if len(args) < 2:
-        return error_response("Usage: login <username> <password>")
-
-    username = args[0]
-    password = args[1]
-
-    user = db.query(User).filter(User.username == username).first()
-    if not user or not verify_password(password, user.password_hash):
-        return error_response("Invalid credentials")
-
-    token = create_access_token({"sub": user.username})
-
-    return {
-        "response_type": "ephemeral",
-        "blocks": [
-            {"type": "section", "text": {"type": "mrkdwn", "text": "🔑 Login successful."}},
-            {"type": "context", "elements": [{"type": "plain_text", "text": f"Token: {token}", "emoji": True}]}
-        ]
-    }
 
 def handle_leaderboard(db):
     try:
@@ -243,16 +199,15 @@ def handle_leaderboard(db):
                 "type": "section",
                 "text": {"type": "mrkdwn", "text": f"{emoji} *{rank}. {username}* — {count} kudos"}
             })
-
         return {"response_type": "in_channel", "blocks": blocks}
     except Exception as e:
         return error_response(str(e))
-def handle_status(slack_id, db):
 
-    user = db.query(User).filter(User.slack_id == slack_id).first()
-
-    if not user:
-        return error_response("Unknown user")
+def handle_status(slack_id, db, username):
+    try:
+        user = services.login_slack_user(db, slack_id, username)
+    except Exception as e:
+        return error_response(str(e))
 
     try:
         data = services.get_status(user.username, db)
@@ -275,12 +230,11 @@ def handle_status(slack_id, db):
     except Exception as e:
         return error_response(str(e))
 
-def handle_mykudos(slack_id, db):
-
-    user = db.query(User).filter(User.slack_id == slack_id).first()
-
-    if not user:
-        return error_response("Unknown user")
+def handle_mykudos(slack_id, db, username):
+    try:
+        user = services.login_slack_user(db, slack_id, username)
+    except Exception as e:
+        return error_response(str(e))
 
     try:
         kudos = services.get_kudos_by_username(user.username, db)
@@ -327,23 +281,21 @@ def handle_help():
              "text": {"type": "mrkdwn", "text": text}}
         ]
     }
-def handle_promote(slack_id, args, db):
+def handle_promote(slack_id, args, db, sender_name):
 
     if len(args) < 1:
         return error_response("Usage: promote <username>")
 
     username = args[0]
 
-    admin = db.query(User).filter(User.slack_id == slack_id).first()
-
-    if not admin:
-        return error_response("Unknown user")
-
-    if admin.role != "admin":
-        return error_response("Admin only")
+    try:
+        admin = services.login_slack_user(db, slack_id, sender_name)
+    except Exception as e:
+        return error_response(str(e))
 
     try:
-        services.promote_user(username, db)
+        services.promote_user(username,admin, db)
+        logger.info("slack command: user %s promoted user %s to admin", sender_name, username)
 
         return success_response(f"{username} promoted to admin")
 
