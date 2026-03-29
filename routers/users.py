@@ -19,10 +19,6 @@ def get_users_data(db: Session = Depends(get_db), current_user=Depends(get_curre
     Returns:
         List[UserFullResponse]: All users data for admins.
     """
-    if not current_user:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Not authorized")
     return services.get_users_data(current_user, db)
 
 
@@ -38,12 +34,4 @@ def delete_user(username: str, current_user=Depends(get_current_user), db: Sessi
     Returns:
         dict: Confirmation message on success.
     """
-    if not current_user:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Not authorized")
-    try:
-        services.delete_user(username, current_user, db)
-        return {"detail": f"User '{username}' deleted successfully"}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    return services.delete_user(username, current_user, db)
