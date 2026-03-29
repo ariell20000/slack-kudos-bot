@@ -194,7 +194,7 @@ def test_promote_command_requires_a_username_argument(db_session):
 
 
 def test_users_command_returns_error_message_when_login_fails(monkeypatch, db_session):
-    def fake_login_slack_user(db, slack_id, username):
+    def fake_login_slack_user(slack_id, username, db):
         raise Exception("not allowed")
 
     monkeypatch.setattr(slack_service.services, "login_slack_user", fake_login_slack_user)
@@ -208,7 +208,7 @@ def test_users_command_returns_error_message_when_login_fails(monkeypatch, db_se
 def test_kudos_handler_returns_success_message_when_kudos_is_created(monkeypatch, db_session):
     captured = {}
 
-    def fake_login_slack_user(db, slack_id, username):
+    def fake_login_slack_user(slack_id, username, db):
         return SimpleNamespace(username=username)
 
     def fake_add_kudos(form, from_user, db):
