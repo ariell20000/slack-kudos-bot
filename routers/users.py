@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from services import services
+from services import user_service
 from core.dependencies import get_db, get_current_user
 
 router = APIRouter(tags=["Users"])
@@ -19,7 +19,7 @@ def get_users_data(db: Session = Depends(get_db), current_user=Depends(get_curre
     Returns:
         List[UserFullResponse]: All users data for admins.
     """
-    return services.get_users_data(current_user, db)
+    return user_service.get_users_data(current_user, db)
 
 
 @router.delete("/user/{username}")
@@ -34,4 +34,4 @@ def delete_user(username: str, current_user=Depends(get_current_user), db: Sessi
     Returns:
         dict: Confirmation message on success.
     """
-    return services.delete_user(username, current_user, db)
+    return user_service.delete_user(username, current_user, db)

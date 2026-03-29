@@ -157,7 +157,7 @@ def test_help_command_returns_command_list(db_session):
 
 
 def test_leaderboard_command_returns_no_data_message_when_there_are_no_scores(monkeypatch, db_session):
-    monkeypatch.setattr(slack_service.services, "get_leaderboard", lambda db: [])
+    monkeypatch.setattr(slack_service.kudos_service, "get_leaderboard", lambda db: [])
 
     response = slack_service.handle_leaderboard(db_session)
 
@@ -174,11 +174,11 @@ def test_delete_command_requires_a_username_argument(db_session):
 
 def test_mykudos_command_returns_no_kudos_message_when_user_has_none(monkeypatch, db_session):
     monkeypatch.setattr(
-        slack_service.services,
+        slack_service.auth_service,
         "login_slack_user",
-        lambda db, slack_id, username: SimpleNamespace(username=username),
+        lambda slack_id, username, db: SimpleNamespace(username=username),
     )
-    monkeypatch.setattr(slack_service.services, "get_kudos_by_username", lambda username, db: [])
+    monkeypatch.setattr(slack_service.kudos_service, "get_kudos_by_username", lambda username, db: [])
 
     response = slack_service.handle_mykudos("U123", db_session, "alice")
 
@@ -197,7 +197,7 @@ def test_users_command_returns_error_message_when_login_fails(monkeypatch, db_se
     def fake_login_slack_user(slack_id, username, db):
         raise Exception("not allowed")
 
-    monkeypatch.setattr(slack_service.services, "login_slack_user", fake_login_slack_user)
+    monkeypatch.setattr(slack_service.auth_service, "login_slack_user", fake_login_slack_user)
 
     response = slack_service.handle_users("U123", db_session, "alice")
 
@@ -217,8 +217,8 @@ def test_kudos_handler_returns_success_message_when_kudos_is_created(monkeypatch
         captured["db"] = db
         return {"status": "received", "kudos_id": 1}
 
-    monkeypatch.setattr(slack_service.services, "login_slack_user", fake_login_slack_user)
-    monkeypatch.setattr(slack_service.services, "add_kudos", fake_add_kudos)
+    monkeypatch.setattr(slack_service.auth_service, "login_slack_user", fake_login_slack_user)
+    monkeypatch.setattr(slack_service.kudos_service, "add_kudos", fake_add_kudos)
 
     response = slack_service.handle_kudos(
         "U123",

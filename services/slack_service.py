@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from core.logger import logger
 from models import Kudos, KudosRequest
 from core.config import settings
-from services import services
+from services import auth_service, kudos_service, user_service
 
 
 def verify_slack_signature(headers, body: bytes):
@@ -140,8 +140,8 @@ def handle_kudos(slack_id, username, form: KudosRequest, db):
     Returns:
         dict: Block Kit success response.
     """
-    from_user = services.login_slack_user(slack_id, username, db)
-    services.add_kudos(form, from_user, db)
+    from_user = auth_service.login_slack_user(slack_id, username, db)
+    kudos_service.add_kudos(form, from_user, db)
     return success_response(f"Kudos sent from {from_user.username} to {form.to_user}")
 
 
@@ -157,11 +157,11 @@ def handle_users(slack_id, db, username):
         dict: Block Kit response with users summary or an error response.
     """
     try:
-        user = services.login_slack_user(slack_id, username, db)
+        user = auth_service.login_slack_user(slack_id, username, db)
     except Exception as e:
         return error_response(str(e))
     try:
-        data = services.get_users_data(user, db)
+        data = user_service.get_users_data(user, db)
 
         lines = [
             f"{u.username} | active={u.is_active} | kudos={len(u.kudos_received)}"
@@ -204,11 +204,11 @@ def handle_delete(slack_id, args, db, sender_name):
     username = args[0]
 
     try:
-        user = services.login_slack_user(slack_id, sender_name, db)
+        user = auth_service.login_slack_user(slack_id, sender_name, db)
     except Exception as e:
         return error_response(str(e))
     try:
-        services.delete_user(username, user, db)
+        user_service.delete_user(username, user, db)
         logger.info("slack command: user %s deleted user %s", user.username, username)
         return success_response(f"User *{username}* deleted")
 
@@ -226,7 +226,7 @@ def handle_leaderboard(db):
         dict: Block Kit formatted leaderboard or a message indicating no data.
     """
     try:
-        data = services.get_leaderboard(db)
+        data = kudos_service.get_leaderboard(db)
         if not data:
             return {"response_type": "in_channel",
                     "blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": "No data yet"}}]}
@@ -257,12 +257,12 @@ def handle_status(slack_id, db, username):
         dict: Block Kit formatted ephemeral response with user stats.
     """
     try:
-        user = services.login_slack_user(slack_id, username, db)
+        user = auth_service.login_slack_user(slack_id, username, db)
     except Exception as e:
         return error_response(str(e))
 
     try:
-        data = services.get_status(user.username, db)
+        data = kudos_service.get_status(user.username, db)
 
         text = (
             f"*User:* {data['username']}\n"
@@ -294,12 +294,12 @@ def handle_mykudos(slack_id, db, username):
         dict: Block Kit formatted ephemeral response with the user's kudos list.
     """
     try:
-        user = services.login_slack_user(slack_id, username, db)
+        user = auth_service.login_slack_user(slack_id, username, db)
     except Exception as e:
         return error_response(str(e))
 
     try:
-        kudos = services.get_kudos_by_username(user.username, db)
+        kudos = kudos_service.get_kudos_by_username(user.username, db)
 
         if not kudos:
             return success_response("No kudos yet")
@@ -356,12 +356,12 @@ def handle_promote(slack_id, args, db, sender_name):
     username = args[0]
 
     try:
-        admin = services.login_slack_user(slack_id, sender_name, db)
+        admin = auth_service.login_slack_user(slack_id, sender_name, db)
     except Exception as e:
         return error_response(str(e))
 
     try:
-        services.promote_user(username,admin, db)
+        user_service.promote_user(username, admin, db)
         logger.info("slack command: user %s promoted user %s to admin", sender_name, username)
 
         return success_response(f"{username} promoted to admin")

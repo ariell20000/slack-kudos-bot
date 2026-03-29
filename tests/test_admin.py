@@ -12,7 +12,8 @@ from fastapi import HTTPException
 
 
 from models_db import User
-from services.services import delete_user, get_users_data, delete_kudos_by_id, add_kudos
+from services.user_service import delete_user, get_users_data
+from services.kudos_service import delete_kudos_by_id, add_kudos
 from security import hash_password
 from models import Kudos
 

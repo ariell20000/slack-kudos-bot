@@ -7,7 +7,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 import models
 from models_db import User
 from security import verify_password, create_access_token
-from services import services
+from services import auth_service
 from core.dependencies import get_db
 
 
@@ -23,9 +23,9 @@ def register(user: models.UserCreate, db: Session = Depends(get_db)):
         db (Session): Database session injected by dependency.
 
     Returns:
-        dict: Result from services.register_user.
+        dict: Result from auth_service.register_user.
     """
-    return services.register_user(user, db)
+    return auth_service.register_user(user, db)
 
 
 @router.post("/login")
@@ -43,4 +43,4 @@ def login(
         dict: {'access_token': ..., 'token_type': 'bearer'} on success.
     """
     user_data = models.UserLogin(username=form_data.username, password=form_data.password)
-    return services.login_user(user_data, db)
+    return auth_service.login_user(user_data, db)

@@ -7,7 +7,7 @@ import pytest
 
 from models_db import  User, KudosDB
 from models import Kudos
-from services.services import add_kudos, get_leaderboard, get_status
+from services.kudos_service import add_kudos, get_leaderboard, get_status
 
 # -------------------------------
 # Fixtures

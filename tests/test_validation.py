@@ -9,7 +9,8 @@ from pydantic import ValidationError
 
 
 from models_db import User
-from services.services import register_user, add_kudos
+from services.auth_service import register_user
+from services.kudos_service import add_kudos
 from models import Kudos, UserCreate
 from security import hash_password, verify_password
 

@@ -9,7 +9,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pytest
 
 from models_db import User
-from services.services import register_user, login_user, delete_user, get_status
+from services.auth_service import register_user, login_user
+from services.user_service import delete_user
+from services.kudos_service import get_status
 from security import verify_password, decode_access_token
 from models import UserCreate
 

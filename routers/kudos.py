@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from models import Kudos
 from models_db import User
 from core.dependencies import get_current_user, get_db
-from services import services
+from services import kudos_service, user_service
 
 router = APIRouter(tags=["Kudos"])
 
@@ -24,9 +24,9 @@ def add_kudos(
         db (Session): Database session.
 
     Returns:
-        dict: Result from services.add_kudos.
+        dict: Result from kudos_service.add_kudos.
     """
-    return services.add_kudos(kudos, current_user, db)
+    return kudos_service.add_kudos(kudos, current_user, db)
 
 
 @router.get("/leaderboard")
@@ -37,9 +37,9 @@ def get_leaderboard(db: Session = Depends(get_db)):
         db (Session): Database session.
 
     Returns:
-        List[dict]: Leaderboard data from services.get_leaderboard.
+        List[dict]: Leaderboard data from kudos_service.get_leaderboard.
     """
-    return services.get_leaderboard(db)
+    return kudos_service.get_leaderboard(db)
 
 @router.get("/kudos/mykudos")
 def my_kudos_local(username: str, db: Session = Depends(get_db)):
@@ -52,8 +52,8 @@ def my_kudos_local(username: str, db: Session = Depends(get_db)):
     Returns:
         List[KudosResponse]: List of kudos for the user.
     """
-    user = services.get_user_by_username(username, db)
-    return services.get_kudos_by_username(user.username, db)
+    user = user_service.get_user_by_username(username, db)
+    return kudos_service.get_kudos_by_username(user.username, db)
 
 @router.get("/kudos/mystatus")
 def my_status_local(username: str, db: Session = Depends(get_db)):
@@ -64,6 +64,6 @@ def my_status_local(username: str, db: Session = Depends(get_db)):
         db (Session): Database session.
 
     Returns:
-        dict: Stats returned by services.get_status.
+        dict: Stats returned by kudos_service.get_status.
     """
-    return services.get_status(username, db)
+    return kudos_service.get_status(username, db)
