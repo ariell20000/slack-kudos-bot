@@ -16,18 +16,54 @@ def add_kudos(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    """Endpoint to add kudos from authenticated user.
+
+    Args:
+        kudos (Kudos): Pydantic model with kudos details.
+        current_user (User): Injected authenticated user.
+        db (Session): Database session.
+
+    Returns:
+        dict: Result from services.add_kudos.
+    """
     return services.add_kudos(kudos, current_user, db)
 
 
 @router.get("/leaderboard")
 def get_leaderboard(db: Session = Depends(get_db)):
+    """Return the leaderboard of top users.
+
+    Args:
+        db (Session): Database session.
+
+    Returns:
+        List[dict]: Leaderboard data from services.get_leaderboard.
+    """
     return services.get_leaderboard(db)
 
 @router.get("/kudos/mykudos")
 def my_kudos_local(username: str, db: Session = Depends(get_db)):
+    """Return all kudos received by a local username.
+
+    Args:
+        username (str): Username to query.
+        db (Session): Database session.
+
+    Returns:
+        List[KudosResponse]: List of kudos for the user.
+    """
     user = services.get_user_by_username(db, username)
     return services.get_kudos_by_username(user.username, db)
 
 @router.get("/kudos/mystatus")
 def my_status_local(username: str, db: Session = Depends(get_db)):
+    """Return kudos stats for a local username.
+
+    Args:
+        username (str): Username to query.
+        db (Session): Database session.
+
+    Returns:
+        dict: Stats returned by services.get_status.
+    """
     return services.get_status(username, db)

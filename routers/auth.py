@@ -16,6 +16,15 @@ router = APIRouter(tags=["Auth"])
 
 @router.post("/register")
 def register(user: models.UserCreate, db: Session = Depends(get_db)):
+    """Register a new local user.
+
+    Args:
+        user (UserCreate): Pydantic model with username and password.
+        db (Session): Database session injected by dependency.
+
+    Returns:
+        dict: Result from services.register_user.
+    """
     return services.register_user(user, db)
 
 
@@ -24,18 +33,14 @@ def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
-    user = db.query(User).filter(
-        User.username == form_data.username
-    ).first()
+    """Authenticate a user via form data and return JWT token.
 
-    if not user or not verify_password(form_data.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+    Args:
+        form_data (OAuth2PasswordRequestForm): Form containing username and password.
+        db (Session): Database session.
 
-    access_token = create_access_token(
-        {"sub": user.username}
-    )
-
-    return {
-        "access_token": access_token,
-        "token_type": "bearer"
-    }
+    Returns:
+        dict: {'access_token': ..., 'token_type': 'bearer'} on success.
+    """
+    user_data = models.UserLogin(username=form_data.username, password=form_data.password)
+    return services.login_user(user_data, db)

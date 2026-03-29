@@ -15,6 +15,14 @@ from security import verify_password, create_access_token
 
 
 def get_leaderboard(db: Session):
+    """Return a leaderboard of users ordered by kudos received.
+
+    Args:
+        db (Session): Database session.
+
+    Returns:
+        List[dict]: List of {'username': str, 'score': int} ordered by score desc.
+    """
     leaderboard = (db.query(
         User.username,
         func.count(KudosDB.id).label("score")
@@ -28,6 +36,18 @@ def get_leaderboard(db: Session):
     return [{"username": user, "score": score} for user, score in leaderboard]
 
 def get_kudos_by_id(kudos_id: int, db: Session):
+    """Fetch a kudos by its ID and return a Pydantic response model.
+
+    Args:
+        kudos_id (int): Kudos primary key.
+        db (Session): Database session.
+
+    Raises:
+        HTTPException: 404 if not found.
+
+    Returns:
+        KudosResponse: Pydantic model representing the kudos.
+    """
     kudos = db.get(KudosDB, kudos_id)
     if not kudos:
         raise HTTPException(status_code=404, detail="Kudos not found.")
@@ -39,6 +59,19 @@ def get_kudos_by_id(kudos_id: int, db: Session):
     return kudos_res
 
 def delete_kudos_by_id(kudos_id: int, current_user, db: Session):
+    """Delete a kudos by ID (admin-only operation).
+
+    Args:
+        kudos_id (int): Kudos ID to delete.
+        current_user (User): User attempting the deletion.
+        db (Session): Database session.
+
+    Raises:
+        HTTPException: 403 if not admin, 404 if kudos not found, 500 on DB errors.
+
+    Returns:
+        dict: {'status': 'deleted'} on success.
+    """
     try:
         require_admin(current_user)
     except Exception as e:
@@ -59,6 +92,18 @@ def delete_kudos_by_id(kudos_id: int, current_user, db: Session):
     return {"status": "deleted"}
 
 def get_kudos_by_username(username: str, db: Session):
+    """Return all kudos received by a username.
+
+    Args:
+        username (str): Username to look up.
+        db (Session): Database session.
+
+    Raises:
+        HTTPException: 404 if user not found.
+
+    Returns:
+        List[KudosResponse]: List of Pydantic kudos response models.
+    """
     user = db.query(User).filter(User.username == username).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
@@ -135,6 +180,18 @@ def add_kudos(kudos_request: Kudos, from_user: User, db: Session):
     return {"status": "received", "kudos_id": db_kudos.id}
 
 def get_status(username: str, db: Session):
+    """Return kudos statistics and active status for a user.
+
+    Args:
+        username (str): Username to query.
+        db (Session): Database session.
+
+    Raises:
+        HTTPException: 404 if user not found.
+
+    Returns:
+        dict: Statistics including kudos_given, kudos_received, and is_active.
+    """
     user=db.query(User).filter(User.username == username).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
@@ -148,6 +205,18 @@ def get_status(username: str, db: Session):
     }
 
 def register_user(user_data, db: Session):
+    """Register a new local user with hashed password.
+
+    Args:
+        user_data: Pydantic UserCreate object with username and password.
+        db (Session): Database session.
+
+    Raises:
+        HTTPException: 400 if username exists, 500 on other failures.
+
+    Returns:
+        dict: {'status': 'created'} on success.
+    """
     user = db.query(User).filter(User.username == user_data.username).first()
     if user:
         raise HTTPException(status_code=400, detail="Username already exists")
@@ -195,6 +264,18 @@ def register_user(user_data, db: Session):
     return {"status": "created"}
 
 def login_user(user_data, db: Session):
+    """Authenticate a local user and return a JWT access token.
+
+    Args:
+        user_data: Pydantic UserLogin object with username and password.
+        db (Session): Database session.
+
+    Raises:
+        HTTPException: 401 for invalid credentials or 403 if user inactive.
+
+    Returns:
+        dict: Access token payload with 'access_token' and 'token_type'.
+    """
     user = db.query(User).filter(User.username == user_data.username).first()
 
     if not user:
@@ -223,6 +304,19 @@ def login_user(user_data, db: Session):
     }
 
 def delete_user(username: str,current_user, db: Session):
+    """Deactivate a user account (admin-only).
+
+    Args:
+        username (str): Username to deactivate.
+        current_user (User): The admin performing the action.
+        db (Session): Database session.
+
+    Raises:
+        HTTPException: 403 if not admin, 404 if user not found, 500 on DB error.
+
+    Returns:
+        dict: {'status': 'deleted'} on success.
+    """
     try:
         require_admin(current_user)
     except Exception as e:
@@ -243,6 +337,18 @@ def delete_user(username: str,current_user, db: Session):
     return {"status": "deleted"}
 
 def get_users_data( current_user, db: Session):
+    """Return full user data including received kudos for admins.
+
+    Args:
+        current_user (User): The user requesting the data (must be admin).
+        db (Session): Database session.
+
+    Raises:
+        HTTPException: 403 if requester is not admin.
+
+    Returns:
+        List[UserFullResponse]: List of users with received kudos.
+    """
     try:
         require_admin(current_user)
     except Exception as e:
@@ -279,11 +385,33 @@ def get_users_data( current_user, db: Session):
 
 #function that checks if the user has gave too many kudos in a day, with a default limit of 5
 def check_too_many_kudos_in_day(db: Session, user_id, k=5):
+    """Check whether a user has reached the daily kudos limit.
+
+    Args:
+        db (Session): Database session.
+        user_id (int): ID of the user sending kudos.
+        k (int): Maximum allowed kudos per day (default 5).
+
+    Returns:
+        bool: True if the user has reached or exceeded the limit.
+    """
     today= datetime.now(timezone.utc).date()
     kudosnum = db.query(KudosDB).filter(KudosDB.from_user_id == user_id, func.date(KudosDB.time_created)==today).count()
     return kudosnum >= k
 
 def create_user(db, username):
+    """Create a new user with the given username.
+
+    Args:
+        db (Session): Database session.
+        username (str): Username to create.
+
+    Returns:
+        dict: {'status': 'created'} on success.
+
+    Raises:
+        HTTPException: 400 if user already exists.
+    """
     try:
         new_user = User(username=username)
         db.add(new_user)
@@ -296,6 +424,19 @@ def create_user(db, username):
         raise HTTPException(status_code=400, detail="User already exists")
 
 def login_slack_user(db, slack_id: str, username: str):
+    """Look up or create a Slack user by slack_id and return the User model.
+
+    Args:
+        db (Session): Database session.
+        slack_id (str): Slack user id.
+        username (str): Slack display name to use when creating a new local user.
+
+    Raises:
+        HTTPException: 403 if the user exists but is inactive.
+
+    Returns:
+        User: The user model associated with the slack_id.
+    """
     user = db.query(User).filter(User.slack_id == slack_id).first()
     if not user:
         user = User(
@@ -317,6 +458,18 @@ def login_slack_user(db, slack_id: str, username: str):
     return user
 
 def get_user_by_username(db, username: str):
+    """Retrieve an active user by username.
+
+    Args:
+        db (Session): Database session.
+        username (str): Username to look up.
+
+    Raises:
+        HTTPException: 404 if user not found, 403 if user inactive.
+
+    Returns:
+        User: The requested user model.
+    """
 
     user = db.query(User).filter(User.username == username).first()
 
@@ -329,6 +482,19 @@ def get_user_by_username(db, username: str):
     return user
 
 def promote_user(username: str, current_user, db: Session):
+    """Promote a user to admin role.
+
+    Args:
+        username (str): Username to promote.
+        current_user (User): User performing the promotion (must be admin).
+        db (Session): Database session.
+
+    Raises:
+        HTTPException: 404 if target user not found, 400 if user inactive, 500 on DB error.
+
+    Returns:
+        dict: {'status': 'promoted'} on success.
+    """
 
     user = db.query(User).filter(User.username == username).first()
     require_admin(current_user)
@@ -350,5 +516,13 @@ def promote_user(username: str, current_user, db: Session):
     return {"status": "promoted"}
 
 def require_admin(user):
+    """Internal helper that raises if the given user is not an admin.
+
+    Args:
+        user (User): User model to check.
+
+    Raises:
+        HTTPException: 403 if the user is not an admin.
+    """
     if user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin only")

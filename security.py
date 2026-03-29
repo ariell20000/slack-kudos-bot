@@ -10,7 +10,14 @@ from core.logger import logger
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def create_access_token(data: dict):
+    """Create a JWT access token containing `data` and an expiration.
 
+    Args:
+        data (dict): Payload data to include in the token (e.g., {'sub': username}).
+
+    Returns:
+        str: Signed JWT token.
+    """
     to_encode = data.copy()
 
     expire = datetime.now(timezone.utc) + timedelta(
@@ -27,7 +34,14 @@ def create_access_token(data: dict):
 
 
 def decode_access_token(token: str):
+    """Decode a JWT token and return its payload.
 
+    Args:
+        token (str): JWT token string.
+
+    Returns:
+        dict|None: Decoded payload on success, or None if token is invalid.
+    """
     try:
         payload = jwt.decode(
             token,
@@ -43,6 +57,14 @@ def decode_access_token(token: str):
 
 
 def hash_password(password: str):
+    """Hash a plaintext password using the configured password context.
+
+    Args:
+        password (str): Plaintext password.
+
+    Returns:
+        str: Hashed password string.
+    """
 
     return pwd_context.hash(password)
 
@@ -51,6 +73,15 @@ def verify_password(
     plain_password: str,
     hashed_password: str
 ):
+    """Verify a plaintext password against a hashed password.
+
+    Args:
+        plain_password (str): The plaintext password to verify.
+        hashed_password (str): The stored hashed password.
+
+    Returns:
+        bool: True if the password matches, False otherwise.
+    """
 
     return pwd_context.verify(
         plain_password,

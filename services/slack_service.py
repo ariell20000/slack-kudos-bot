@@ -13,6 +13,18 @@ from services import services
 
 
 def verify_slack_signature(headers, body: bytes):
+    """Verify Slack request signature and timestamp.
+
+    Args:
+        headers (Mapping): Request headers containing Slack signature and timestamp.
+        body (bytes): Raw request body bytes.
+
+    Raises:
+        HTTPException: 400 if headers are missing or request is too old; 403 if signature invalid.
+
+    Returns:
+        bool: True if verification succeeds.
+    """
     slack_signature = headers.get("X-Slack-Signature")
     slack_timestamp = headers.get("X-Slack-Request-Timestamp")
 
@@ -40,6 +52,15 @@ def verify_slack_signature(headers, body: bytes):
 
 
 def handle_command(form, db: Session):
+    """Dispatch a Slack form payload to the appropriate command handler.
+
+    Args:
+        form (Mapping): Parsed form data from Slack (user_id, command, text, etc.).
+        db (Session): Database session.
+
+    Returns:
+        dict: Block Kit formatted response.
+    """
     slack_id = form.get("user_id")
     username = form.get("user_name")
 
@@ -72,6 +93,14 @@ def handle_command(form, db: Session):
 # ---------------- Block Kit helpers ----------------
 
 def error_response(message: str):
+    """Return a Slack Block Kit ephemeral error response.
+
+    Args:
+        message (str): Error message to display.
+
+    Returns:
+        dict: Block Kit formatted ephemeral error response.
+    """
     return {
         "response_type": "ephemeral",
         "blocks": [
@@ -81,6 +110,14 @@ def error_response(message: str):
 
 
 def success_response(message: str):
+    """Return a Slack Block Kit ephemeral success response.
+
+    Args:
+        message (str): Success message to display.
+
+    Returns:
+        dict: Block Kit formatted ephemeral success response.
+    """
     return {
         "response_type": "ephemeral",
         "blocks": [
@@ -92,12 +129,33 @@ def success_response(message: str):
 # ---------------- Command handlers ----------------
 
 def handle_kudos(slack_id, username, form: KudosRequest, db):
+    """Handle the /kudos Slack command: ensure Slack user exists and add kudos.
+
+    Args:
+        slack_id (str): Slack user ID of the sender.
+        username (str): Slack display name of the sender.
+        form (KudosRequest): Parsed kudos request payload.
+        db (Session): Database session.
+
+    Returns:
+        dict: Block Kit success response.
+    """
     from_user = services.login_slack_user(db, slack_id, username)
     services.add_kudos(form, from_user, db)
     return success_response(f"Kudos sent from {from_user.username} to {form.to_user}")
 
 
 def handle_users(slack_id, db, username):
+    """Handle the /users Slack command (admin-only): return users summary.
+
+    Args:
+        slack_id (str): Slack user ID of the requester.
+        db (Session): Database session.
+        username (str): Slack display name.
+
+    Returns:
+        dict: Block Kit response with users summary or an error response.
+    """
     try:
         user = services.login_slack_user(db, slack_id, username)
     except Exception as e:
@@ -128,6 +186,17 @@ def handle_users(slack_id, db, username):
 
 
 def handle_delete(slack_id, args, db, sender_name):
+    """Handle the /delete Slack command (admin-only): deactivate a user.
+
+    Args:
+        slack_id (str): Slack user ID of the requester.
+        args (list): Command arguments (expects username as first arg).
+        db (Session): Database session.
+        sender_name (str): Slack display name of the requester.
+
+    Returns:
+        dict: Success or error Block Kit response.
+    """
 
     if len(args) < 1:
         return error_response("Usage: delete <username>")
@@ -148,6 +217,14 @@ def handle_delete(slack_id, args, db, sender_name):
 
 
 def handle_leaderboard(db):
+    """Handle the /leaderboard Slack command and format the leaderboard for Slack.
+
+    Args:
+        db (Session): Database session.
+
+    Returns:
+        dict: Block Kit formatted leaderboard or a message indicating no data.
+    """
     try:
         data = services.get_leaderboard(db)
         if not data:
@@ -169,6 +246,16 @@ def handle_leaderboard(db):
         return error_response(str(e))
 
 def handle_status(slack_id, db, username):
+    """Handle the /mystatus Slack command and return user stats.
+
+    Args:
+        slack_id (str): Slack user ID of the requester.
+        db (Session): Database session.
+        username (str): Slack display name.
+
+    Returns:
+        dict: Block Kit formatted ephemeral response with user stats.
+    """
     try:
         user = services.login_slack_user(db, slack_id, username)
     except Exception as e:
@@ -196,6 +283,16 @@ def handle_status(slack_id, db, username):
         return error_response(str(e))
 
 def handle_mykudos(slack_id, db, username):
+    """Handle the /mykudos Slack command and return kudos sent to the user.
+
+    Args:
+        slack_id (str): Slack user ID of the requester.
+        db (Session): Database session.
+        username (str): Slack display name.
+
+    Returns:
+        dict: Block Kit formatted ephemeral response with the user's kudos list.
+    """
     try:
         user = services.login_slack_user(db, slack_id, username)
     except Exception as e:
@@ -225,6 +322,11 @@ def handle_mykudos(slack_id, db, username):
         return error_response(str(e))
 
 def handle_help():
+    """Return the help text describing available Slack commands.
+
+    Returns:
+        dict: Block Kit ephemeral response with command list.
+    """
 
     text = (
         "*Available commands:*\n"

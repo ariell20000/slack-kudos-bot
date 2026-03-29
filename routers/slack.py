@@ -12,7 +12,15 @@ router = APIRouter(tags=["Slack"])
 
 @router.post("/command", response_model=SlackResponse)
 async def slack_command(request: Request, db: Session = Depends(get_db)):
+    """Endpoint for Slack slash commands. Verifies request and dispatches handling.
 
+    Args:
+        request (Request): FastAPI request object (contains headers and body).
+        db (Session): Database session.
+
+    Returns:
+        SlackResponse: Formatted Block Kit response.
+    """
     raw_body = await request.body()
 
     if settings.VERIFY_SLACK_SIGNATURE:

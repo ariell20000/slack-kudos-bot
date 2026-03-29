@@ -6,11 +6,30 @@ from pydantic import BaseModel, AfterValidator, Field
 
 
 def is_empty(s: str):
+    """Validator that ensures a string is not empty or just whitespace.
+
+    Args:
+        s (str): The string to validate.
+
+    Returns:
+        str: The original string if valid.
+
+    Raises:
+        ValueError: If the string is empty or only whitespace.
+    """
     if s.strip() == "":
         raise ValueError("Field cannot be empty")
     return s
 
 def too_short(min_length: int):
+    """Factory that returns a validator ensuring a string meets a minimum length.
+
+    Args:
+        min_length (int): Minimum allowed length for the string.
+
+    Returns:
+        Callable[[str], str]: A validator function that raises ValueError if too short.
+    """
     def validator(s: str):
         if len(s) < min_length:
             raise ValueError(
@@ -19,6 +38,17 @@ def too_short(min_length: int):
         return s
     return validator
 def contains_no_spaces(s: str):
+    """Validator that ensures a string contains no space characters.
+
+    Args:
+        s (str): The string to validate.
+
+    Returns:
+        str: The original string if valid.
+
+    Raises:
+        ValueError: If the string contains any spaces.
+    """
     if " " in s:
         raise ValueError("Field cannot contain spaces")
     return s
