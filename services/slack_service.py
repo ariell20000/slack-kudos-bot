@@ -32,7 +32,7 @@ def verify_slack_signature(headers, body: bytes):
         logger.warning("failed to verify slack signature")
         raise HTTPException(status_code=400, detail="Missing Slack headers")
 
-    if abs(time() - int(slack_timestamp)) > 60 * 5:
+    if abs(time() - int(slack_timestamp)) > settings.SLACK_REQUEST_TIMEOUT_SECONDS:
         logger.warning("failed to verify slack signature because request timed out")
         raise HTTPException(status_code=400, detail="Request too old")
 
@@ -140,7 +140,7 @@ def handle_kudos(slack_id, username, form: KudosRequest, db):
     Returns:
         dict: Block Kit success response.
     """
-    from_user = services.login_slack_user(db, slack_id, username)
+    from_user = services.login_slack_user(slack_id, username, db)
     services.add_kudos(form, from_user, db)
     return success_response(f"Kudos sent from {from_user.username} to {form.to_user}")
 
@@ -157,7 +157,7 @@ def handle_users(slack_id, db, username):
         dict: Block Kit response with users summary or an error response.
     """
     try:
-        user = services.login_slack_user(db, slack_id, username)
+        user = services.login_slack_user(slack_id, username, db)
     except Exception as e:
         return error_response(str(e))
     try:
@@ -204,7 +204,7 @@ def handle_delete(slack_id, args, db, sender_name):
     username = args[0]
 
     try:
-        user = services.login_slack_user(db, slack_id, sender_name)
+        user = services.login_slack_user(slack_id, sender_name, db)
     except Exception as e:
         return error_response(str(e))
     try:
@@ -257,7 +257,7 @@ def handle_status(slack_id, db, username):
         dict: Block Kit formatted ephemeral response with user stats.
     """
     try:
-        user = services.login_slack_user(db, slack_id, username)
+        user = services.login_slack_user(slack_id, username, db)
     except Exception as e:
         return error_response(str(e))
 
@@ -294,7 +294,7 @@ def handle_mykudos(slack_id, db, username):
         dict: Block Kit formatted ephemeral response with the user's kudos list.
     """
     try:
-        user = services.login_slack_user(db, slack_id, username)
+        user = services.login_slack_user(slack_id, username, db)
     except Exception as e:
         return error_response(str(e))
 
@@ -356,7 +356,7 @@ def handle_promote(slack_id, args, db, sender_name):
     username = args[0]
 
     try:
-        admin = services.login_slack_user(db, slack_id, sender_name)
+        admin = services.login_slack_user(slack_id, sender_name, db)
     except Exception as e:
         return error_response(str(e))
 

@@ -52,7 +52,7 @@ def my_kudos_local(username: str, db: Session = Depends(get_db)):
     Returns:
         List[KudosResponse]: List of kudos for the user.
     """
-    user = services.get_user_by_username(db, username)
+    user = services.get_user_by_username(username, db)
     return services.get_kudos_by_username(user.username, db)
 
 @router.get("/kudos/mystatus")

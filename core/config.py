@@ -10,6 +10,11 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256" #JWT signing algorithm
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60  # JWT expiration in minutes
     VERIFY_SLACK_SIGNATURE: bool = False
+    
+    # Business logic configuration
+    DAILY_KUDOS_LIMIT: int = 5  # Maximum kudos per user per day
+    MAX_KUDOS_MESSAGE_LENGTH: int = 200  # Maximum length for kudos messages
+    SLACK_REQUEST_TIMEOUT_SECONDS: int = 300  # 5 minutes - max age for Slack requests
 
     class Config:
         env_file = ".env"
