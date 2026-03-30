@@ -150,6 +150,11 @@ slack_kudos_bot/
 
 ## Setup & Run
 
+### Prerequisites
+
+- Python 3.10 or higher
+- pip (Python package manager)
+
 ### 1. Clone and install dependencies
 
 ```bash
