@@ -102,14 +102,13 @@ def test_kudos_message_too_long(db_session):
 
     msg = "a" * 500
 
-    kudos = Kudos(
-        from_user="alice",
-        to_user="bob",
-        message=msg
-    )
-
-    with pytest.raises(Exception):
-        add_kudos(kudos, alice, db_session)
+    with pytest.raises(Exception) as excinfo:
+        kudos = Kudos(
+            from_user="alice",
+            to_user="bob",
+            message=msg
+        )
+    assert "at most 200 characters" in str(excinfo.value)
 
 def test_unique_username_constraint(db_session):
     user_data = UserCreate(

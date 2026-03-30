@@ -129,6 +129,6 @@ def login_slack_user(slack_id: str, username: str, db: Session) -> User:
 
     if not user.is_active:
         logger.warning("slack user %s tried to login but is not active", slack_id)
-        raise HTTPException(status_code=403, detail="Inactive user")
+        raise HTTPException(status_code=403, detail="User is inactive")
 
     return user

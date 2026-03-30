@@ -1,5 +1,6 @@
 #core/dependencies.py
 
+from typing import Generator
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -11,7 +12,7 @@ from security import decode_access_token
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 
-def get_db():
+def get_db() -> Generator[Session, None, None]:
     """FastAPI dependency that yields a database session with automatic transaction management.
 
     The session auto-commits on successful request completion and auto-rollbacks

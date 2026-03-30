@@ -52,7 +52,7 @@ def test_cannot_give_kudos_to_inactive(db_session, users):
     kudos = Kudos(from_user="alice", to_user="inactive_user", message="Hello inactive")
     with pytest.raises(Exception) as excinfo:
         add_kudos(kudos, alice, db_session)
-    assert "Inactive receiver" in str(excinfo.value)
+    assert "Receiver is inactive" in str(excinfo.value)
 
 
 def test_cannot_give_kudos_from_inactive(db_session, users):
@@ -60,7 +60,7 @@ def test_cannot_give_kudos_from_inactive(db_session, users):
     kudos = Kudos(from_user="inactive", to_user="bob", message="Hello from inactive")
     with pytest.raises(Exception) as excinfo:
         add_kudos(kudos, inactive_user, db_session)
-    assert "Inactive sender" in str(excinfo.value)
+    assert "Sender is inactive" in str(excinfo.value)
 
 
 def test_limit_kudos_per_day(db_session, active_users):

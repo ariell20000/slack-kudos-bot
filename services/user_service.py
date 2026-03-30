@@ -34,7 +34,7 @@ def get_user_by_username(username: str, db: Session) -> User:
         raise HTTPException(status_code=404, detail="User not found")
 
     if not user.is_active:
-        raise HTTPException(status_code=403, detail="Inactive user")
+        raise HTTPException(status_code=403, detail="User is inactive")
 
     return user
 
@@ -121,7 +121,7 @@ def promote_user(username: str, current_user: User, db: Session) -> StatusRespon
     user = _get_user_by_username_or_404(username, db)
 
     if not user.is_active:
-        raise HTTPException(status_code=400, detail="User inactive")
+        raise HTTPException(status_code=400, detail="User is inactive")
 
     user.role = "admin"
     logger.info("User %s promoted to admin", username)

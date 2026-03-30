@@ -161,11 +161,11 @@ def add_kudos(kudos_request: Kudos, from_user: User, db: Session) -> KudosCreate
 
     if not from_user.is_active:
         logger.warning("Inactive sender %s tried to send kudos", from_user.username)
-        raise HTTPException(status_code=400, detail="Inactive sender")
+        raise HTTPException(status_code=400, detail="Sender is inactive")
 
     if not to_user.is_active:
         logger.warning("Sender %s tried to send kudos to inactive user %s", from_user.username, to_user.username)
-        raise HTTPException(status_code=400, detail="Inactive receiver")
+        raise HTTPException(status_code=400, detail="Receiver is inactive")
 
     if check_too_many_kudos_in_day(db, from_user.id):
         logger.warning("Sender %s reached daily kudos limit", from_user.username)
