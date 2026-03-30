@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from core.config import settings
 from core.logger import logger
 
-#how the data will be hashed, "bcrypt" is a strong hashing algorithm
+# Bcrypt password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def create_access_token(data: dict) -> str:
