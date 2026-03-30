@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from core.logger import logger
-from models import Kudos, KudosRequest
+from models import Kudos
 from core.config import settings
 from services import auth_service, kudos_service, user_service
 
@@ -128,21 +128,28 @@ def success_response(message: str):
 
 # ---------------- Command handlers ----------------
 
-def handle_kudos(slack_id, username, form: KudosRequest, db):
+def handle_kudos(slack_id: str, username: str, args: list, db):
     """Handle the /kudos Slack command: ensure Slack user exists and add kudos.
 
     Args:
         slack_id (str): Slack user ID of the sender.
         username (str): Slack display name of the sender.
-        form (KudosRequest): Parsed kudos request payload.
+        args (list): Command arguments [to_user, message_words...].
         db (Session): Database session.
 
     Returns:
-        dict: Block Kit success response.
+        dict: Block Kit success or error response.
     """
+    if len(args) < 2:
+        return error_response("Usage: /kudos <username> <message>")
+    
+    to_user = args[0]
+    message = " ".join(args[1:])
+    
+    kudos = Kudos(from_user=username, to_user=to_user, message=message)
     from_user = auth_service.login_slack_user(slack_id, username, db)
-    kudos_service.add_kudos(form, from_user, db)
-    return success_response(f"Kudos sent from {from_user.username} to {form.to_user}")
+    kudos_service.add_kudos(kudos, from_user, db)
+    return success_response(f"Kudos sent from {from_user.username} to {to_user}")
 
 
 def handle_users(slack_id, db, username):

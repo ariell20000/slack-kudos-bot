@@ -45,7 +45,7 @@ Slack Command → Router → Service Layer → Database
   - `user_service.py` - User management (delete, promote, get)
   - `kudos_service.py` - Kudos operations (send, get, delete, leaderboard)
   - `slack_service.py` - Slack command parsing and Block Kit formatting
-- **Core** (`core/`) - Configuration, dependencies, logging
+- **Core** (`core/`) - Configuration, dependencies, logging, security
 - **Database** - SQLAlchemy ORM models
 
 ---
@@ -58,11 +58,11 @@ slack_kudos_bot/
 ├── database.py          # Database connection setup
 ├── models.py            # Pydantic schemas (validation)
 ├── models_db.py         # SQLAlchemy ORM models
-├── security.py          # Password hashing & JWT tokens
 ├── core/
 │   ├── config.py        # Environment settings
 │   ├── dependencies.py  # FastAPI dependencies (auth, DB)
-│   └── logger.py        # Logging configuration
+│   ├── logger.py        # Logging configuration
+│   └── security.py      # Password hashing & JWT tokens
 ├── routers/
 │   ├── auth.py          # /register, /login endpoints
 │   ├── kudos.py         # /kudos endpoints
