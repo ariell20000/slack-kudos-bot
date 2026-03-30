@@ -1,6 +1,6 @@
 # Kudos Slack Bot
 
-Kudos Slack Bot is an internal Slack bot that allows sending Kudos, viewing leaderboards, and managing users with admin permissions. It is built with **FastAPI**, **SQLAlchemy**, and integrates with Slack using Slash Commands.
+A FastAPI-based Slack bot for sending kudos with JWT authentication, role-based access control, and SQLite persistence.
 
 ---
 
@@ -8,12 +8,13 @@ Kudos Slack Bot is an internal Slack bot that allows sending Kudos, viewing lead
 
 - [Overview](#overview)
 - [Architecture](#architecture)
+- [Project Structure](#project-structure)
 - [Features](#features)
 - [Slack Commands](#slack-commands)
 - [Database Structure](#database-structure)
 - [Setup & Run](#setup--run)
+- [Testing](#testing)
 - [Future Improvements](#future-improvements)
-- [Flow Diagram](#flow-diagram)
 
 ---
 
@@ -31,19 +32,55 @@ It provides REST endpoints and a Slack interface, including authentication and r
 ---
 
 ## Architecture
-Slack Command → Slack Service → Services Layer → Database
 
-- **Slack Service Layer (`slack_service.py`)**  
-  Handles Slack request verification, command parsing, Block Kit responses, and logging.
+```
+Slack Command → Router → Service Layer → Database
+```
 
-- **Services Layer (`services.py`)**  
-  Contains business logic: Kudos handling, user management, leaderboard, and rules (e.g., daily limits).
+**Layered Design:**
 
-- **Database**  
-  SQLAlchemy models for users and Kudos.
+- **Routers** (`routers/`) - Thin HTTP endpoint handlers
+- **Services** (`services/`) - Business logic split into focused modules:
+  - `auth_service.py` - User registration, login, Slack authentication
+  - `user_service.py` - User management (delete, promote, get)
+  - `kudos_service.py` - Kudos operations (send, get, delete, leaderboard)
+  - `slack_service.py` - Slack command parsing and Block Kit formatting
+- **Core** (`core/`) - Configuration, dependencies, logging
+- **Database** - SQLAlchemy ORM models
 
-- **Logging**  
-  Structured logs for audit and debugging.
+---
+
+## Project Structure
+
+```
+slack_kudos_bot/
+├── main.py              # FastAPI app entry point
+├── database.py          # Database connection setup
+├── models.py            # Pydantic schemas (validation)
+├── models_db.py         # SQLAlchemy ORM models
+├── security.py          # Password hashing & JWT tokens
+├── core/
+│   ├── config.py        # Environment settings
+│   ├── dependencies.py  # FastAPI dependencies (auth, DB)
+│   └── logger.py        # Logging configuration
+├── routers/
+│   ├── auth.py          # /register, /login endpoints
+│   ├── kudos.py         # /kudos endpoints
+│   ├── users.py         # /users endpoints (admin)
+│   └── slack.py         # /slack/command endpoint
+├── services/
+│   ├── auth_service.py
+│   ├── kudos_service.py
+│   ├── user_service.py
+│   └── slack_service.py
+└── tests/
+    ├── conftest.py      # Test fixtures
+    ├── test_auth.py
+    ├── test_kudos.py
+    ├── test_admin.py
+    ├── test_slack_service.py
+    └── test_validation.py
+```
 
 ---
 
@@ -65,10 +102,10 @@ Slack Command → Slack Service → Services Layer → Database
 - Special emojis for top ranks (🔥, 🥇, 🥈, 🥉)
 
 ### Security
-- Slack request verification
-- Local users with encrypted passwords
-- Role-based access control
-- Only active users can perform actions
+- Slack request signature verification (HMAC)
+- Password hashing with bcrypt
+- JWT authentication for REST API
+- Role-based access control (user/admin)
 
 ---
 
@@ -90,38 +127,86 @@ Slack Command → Slack Service → Services Layer → Database
 ## Database Structure
 
 ### User
-- `id` (PK)  
-- `username` (unique)  
-- `slack_id` (nullable)  
-- `role` (`user` / `admin`)  
-- `is_active` (bool)  
-- `password_hash` (nullable for Slack users)
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | Integer | Primary key |
+| `username` | String | Unique username |
+| `slack_id` | String | Slack user ID (nullable) |
+| `password_hash` | String | Bcrypt hash (nullable for Slack users) |
+| `role` | String | `user` or `admin` |
+| `is_active` | Boolean | Account status |
+| `auth_provider` | String | `local` or `slack` |
 
 ### Kudos
-- `id` (PK)  
-- `from_user_id` (FK → User)  
-- `to_user_id` (FK → User)  
-- `message` (text)  
-- `time_created` (datetime)  
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | Integer | Primary key |
+| `from_user_id` | Integer | FK → User |
+| `to_user_id` | Integer | FK → User |
+| `message` | String | Kudos message |
+| `time_created` | DateTime | Timestamp |
 
 ---
 
 ## Setup & Run
 
+### 1. Clone and install dependencies
+
 ```bash
-# Install dependencies
+git clone https://github.com/yourusername/slack_kudos_bot.git
+cd slack_kudos_bot
 pip install -r requirements.txt
+```
 
-# Run the server
+### 2. Configure environment variables
+
+```bash
+cp .env.example .env
+# Edit .env with your values
+```
+
+Required variables:
+- `SLACK_SIGNING_SECRET` - From Slack App settings
+- `SECRET_KEY` - Random string for JWT signing
+
+### 3. Run the server
+
+```bash
 uvicorn main:app --reload
+```
 
-Environment Variables (.env):
+Server runs at http://localhost:8000
 
-SLACK_SIGNING_SECRET
-DATABASE_URL
-Future Improvements
-Support quoted messages in Slack
-Async handling for better performance
-Full unit and integration test coverage
-Visual dashboard for Kudos
-Rate limiting and analytics
+API docs available at http://localhost:8000/docs
+
+### Docker
+
+```bash
+docker build -t slack-kudos-bot .
+docker run -p 8000:8000 --env-file .env slack-kudos-bot
+```
+
+---
+
+## Testing
+
+```bash
+# Run all tests
+pytest
+
+# Run with verbose output
+pytest -v
+
+# Run specific test file
+pytest tests/test_kudos.py
+```
+
+---
+
+## Future Improvements
+
+- [ ] Support quoted messages in Slack
+- [ ] Async database operations
+- [ ] Visual dashboard for Kudos analytics
+- [ ] Rate limiting
+- [ ] Database migrations with Alembic
