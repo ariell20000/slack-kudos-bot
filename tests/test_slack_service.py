@@ -12,7 +12,6 @@ from fastapi import HTTPException
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.config import settings
-from models import KudosRequest
 from services import slack_service
 
 
@@ -211,8 +210,8 @@ def test_kudos_handler_returns_success_message_when_kudos_is_created(monkeypatch
     def fake_login_slack_user(slack_id, username, db):
         return SimpleNamespace(username=username)
 
-    def fake_add_kudos(form, from_user, db):
-        captured["form"] = form
+    def fake_add_kudos(kudos, from_user, db):
+        captured["kudos"] = kudos
         captured["from_user"] = from_user
         captured["db"] = db
         return {"status": "received", "kudos_id": 1}
@@ -220,16 +219,17 @@ def test_kudos_handler_returns_success_message_when_kudos_is_created(monkeypatch
     monkeypatch.setattr(slack_service.auth_service, "login_slack_user", fake_login_slack_user)
     monkeypatch.setattr(slack_service.kudos_service, "add_kudos", fake_add_kudos)
 
+    # Pass args as a list (how Slack commands are parsed)
     response = slack_service.handle_kudos(
         "U123",
         "alice",
-        KudosRequest(to_user="bob", message="great job"),
+        ["bob", "great", "job"],  # args list: [to_user, message_words...]
         db_session,
     )
 
     assert response["response_type"] == "ephemeral"
     assert response["blocks"][0]["text"]["text"] == "✅ Kudos sent from alice to bob"
-    assert captured["form"].to_user == "bob"
-    assert captured["form"].message == "great job"
+    assert captured["kudos"].to_user == "bob"
+    assert captured["kudos"].message == "great job"
     assert captured["from_user"].username == "alice"
     assert captured["db"] is db_session
