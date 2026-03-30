@@ -3,13 +3,16 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from models import UserFullResponse
+from models_db import User
 from services import user_service
+from services.user_service import StatusResponse
 from core.dependencies import get_db, get_current_user
 
 router = APIRouter(tags=["Users"])
 
 @router.get("/users/data")
-def get_users_data(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+def get_users_data(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[UserFullResponse]:
     """Admin endpoint returning full users data including received kudos.
 
     Args:
@@ -23,7 +26,7 @@ def get_users_data(db: Session = Depends(get_db), current_user=Depends(get_curre
 
 
 @router.delete("/user/{username}")
-def delete_user(username: str, current_user=Depends(get_current_user), db: Session = Depends(get_db)):
+def delete_user(username: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> StatusResponse:
     """Admin endpoint to deactivate a user account.
 
     Args:

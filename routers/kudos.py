@@ -3,10 +3,11 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from models import Kudos
+from models import Kudos, KudosResponse
 from models_db import User
 from core.dependencies import get_current_user, get_db
 from services import kudos_service, user_service
+from services.kudos_service import KudosCreatedResponse, LeaderboardEntry, UserStatsResponse
 
 router = APIRouter(tags=["Kudos"])
 
@@ -15,7 +16,7 @@ def add_kudos(
     kudos: Kudos,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
-):
+) -> KudosCreatedResponse:
     """Endpoint to add kudos from authenticated user.
 
     Args:
@@ -30,7 +31,7 @@ def add_kudos(
 
 
 @router.get("/leaderboard")
-def get_leaderboard(db: Session = Depends(get_db)):
+def get_leaderboard(db: Session = Depends(get_db)) -> list[LeaderboardEntry]:
     """Return the leaderboard of top users.
 
     Args:
@@ -42,7 +43,7 @@ def get_leaderboard(db: Session = Depends(get_db)):
     return kudos_service.get_leaderboard(db)
 
 @router.get("/kudos/mykudos")
-def my_kudos_local(username: str, db: Session = Depends(get_db)):
+def my_kudos_local(username: str, db: Session = Depends(get_db)) -> list[KudosResponse]:
     """Return all kudos received by a local username.
 
     Args:
@@ -56,7 +57,7 @@ def my_kudos_local(username: str, db: Session = Depends(get_db)):
     return kudos_service.get_kudos_by_username(user.username, db)
 
 @router.get("/kudos/mystatus")
-def my_status_local(username: str, db: Session = Depends(get_db)):
+def my_status_local(username: str, db: Session = Depends(get_db)) -> UserStatsResponse:
     """Return kudos stats for a local username.
 
     Args:

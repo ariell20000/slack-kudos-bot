@@ -8,6 +8,7 @@ import models
 from models_db import User
 from security import verify_password, create_access_token
 from services import auth_service
+from services.auth_service import StatusResponse, TokenResponse
 from core.dependencies import get_db
 
 
@@ -15,7 +16,7 @@ router = APIRouter(tags=["Auth"])
 
 
 @router.post("/register")
-def register(user: models.UserCreate, db: Session = Depends(get_db)):
+def register(user: models.UserCreate, db: Session = Depends(get_db)) -> StatusResponse:
     """Register a new local user.
 
     Args:
@@ -32,7 +33,7 @@ def register(user: models.UserCreate, db: Session = Depends(get_db)):
 def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
-):
+) -> TokenResponse:
     """Authenticate a user via form data and return JWT token.
 
     Args:

@@ -9,7 +9,7 @@ from core.logger import logger
 #how the data will be hashed, "bcrypt" is a strong hashing algorithm
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-def create_access_token(data: dict):
+def create_access_token(data: dict) -> str:
     """Create a JWT access token containing `data` and an expiration.
 
     Args:
@@ -33,7 +33,7 @@ def create_access_token(data: dict):
     )
 
 
-def decode_access_token(token: str):
+def decode_access_token(token: str) -> dict | None:
     """Decode a JWT token and return its payload.
 
     Args:
@@ -56,7 +56,7 @@ def decode_access_token(token: str):
         return None
 
 
-def hash_password(password: str):
+def hash_password(password: str) -> str:
     """Hash a plaintext password using the configured password context.
 
     Args:
@@ -72,7 +72,7 @@ def hash_password(password: str):
 def verify_password(
     plain_password: str,
     hashed_password: str
-):
+) -> bool:
     """Verify a plaintext password against a hashed password.
 
     Args:

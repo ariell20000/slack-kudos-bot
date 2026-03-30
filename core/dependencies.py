@@ -12,7 +12,10 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 
 def get_db():
-    """FastAPI dependency that yields a database session.
+    """FastAPI dependency that yields a database session with automatic transaction management.
+
+    The session auto-commits on successful request completion and auto-rollbacks
+    on any exception, ensuring atomic request-level transactions.
 
     Yields:
         Session: SQLAlchemy session bound to the application's engine.
@@ -20,6 +23,10 @@ def get_db():
     db = SessionLocal()
     try:
         yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()
 
@@ -27,7 +34,7 @@ def get_db():
 def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
-):
+) -> User:
     """Dependency that decodes an access token and returns the corresponding User.
 
     Args:
@@ -54,7 +61,7 @@ def get_current_user(
 
     return user
 
-def require_admin(current_user: User = Depends(get_current_user)):
+def require_admin(current_user: User = Depends(get_current_user)) -> User:
     """Dependency that enforces admin privileges.
 
     Args:
