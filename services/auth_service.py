@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from core.logger import logger
 from models_db import User
 from models import UserCreate, UserLogin
-from security import hash_password, verify_password, create_access_token
+from core.security import hash_password, verify_password, create_access_token
 
 
 class StatusResponse(TypedDict):

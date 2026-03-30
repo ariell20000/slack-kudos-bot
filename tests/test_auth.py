@@ -12,7 +12,7 @@ from models_db import User
 from services.auth_service import register_user, login_user
 from services.user_service import delete_user
 from services.kudos_service import get_status
-from security import verify_password, decode_access_token
+from core.security import verify_password, decode_access_token
 from models import UserCreate
 
 

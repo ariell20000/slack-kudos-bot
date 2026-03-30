@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 import models
 from models_db import User
-from security import verify_password, create_access_token
+from core.security import verify_password, create_access_token
 from services import auth_service
 from services.auth_service import StatusResponse, TokenResponse
 from core.dependencies import get_db
