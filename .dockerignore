@@ -1,4 +1,33 @@
-venv
-__pycache__
-.idea
+# Virtual environment
+venv/
+.venv/
+
+# Python cache
+__pycache__/
 *.pyc
+*.pyo
+
+# IDE
+.idea/
+.vscode/
+
+# Git
+.git/
+.gitignore
+
+# Environment & secrets
+.env
+
+# Database (don't copy local DB to container)
+*.db
+
+# Logs
+*.log
+
+# Tests (not needed in production image)
+tests/
+pytest.ini
+.pytest_cache/
+
+# Documentation
+*.md
