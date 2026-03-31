@@ -152,8 +152,11 @@ def handle_kudos(slack_id: str, username: str, args: list, db):
     
     kudos = Kudos(from_user=username, to_user=to_user, message=message)
     from_user = auth_service.login_slack_user(slack_id, username, db)
-    kudos_service.add_kudos(kudos, from_user, db)
-    return success_response(f"Kudos sent from {from_user.username} to {to_user}")
+    try:
+        kudos_service.add_kudos(kudos, from_user, db)
+        return success_response(f"Kudos sent from {from_user.username} to {to_user}")
+    except HTTPException as e:
+        return error_response(e.detail)
 
 
 def handle_users(slack_id, db, username):

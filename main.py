@@ -15,9 +15,9 @@ app = FastAPI(
 )
 
 app.include_router(slack.router, prefix="/slack", tags=["Slack"])
-app.include_router(auth.router, tags=["Authentication"])
-app.include_router(kudos.router, tags=["Kudos"])
-app.include_router(users.router, tags=["Users"])
+app.include_router(auth.router)
+app.include_router(kudos.router)
+app.include_router(users.router)
 
 
 @app.get("/health", tags=["System"])

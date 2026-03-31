@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from core.logger import logger
 from core.config import settings
 from models_db import KudosDB, User
-from models import KudosResponse, Kudos
+from models import KudosResponse, Kudos, KudosRequest
 from core.dependencies import require_admin
 
 
@@ -133,11 +133,11 @@ def get_kudos_by_username(username: str, db: Session) -> list[KudosResponse]:
     return [_convert_kudos_to_response(k) for k in kudos]
 
 
-def add_kudos(kudos_request: Kudos, from_user: User, db: Session) -> KudosCreatedResponse:
+def add_kudos(kudos_request: KudosRequest, from_user: User, db: Session) -> KudosCreatedResponse:
     """Create a new kudos entry from one user to another.
 
     Args:
-        kudos_request (Kudos): Pydantic model with to_user and message.
+        kudos_request (KudosRequest): Pydantic model with to_user and message.
         from_user (User): User giving the kudos.
         db (Session): Database session.
 
