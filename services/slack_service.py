@@ -51,8 +51,25 @@ def verify_slack_signature(headers, body: bytes):
     return True
 
 
+# Command Registry - maps command names to handler functions
+# Each handler receives (slack_id, username, args, db) and returns a Block Kit response
+COMMAND_HANDLERS = {
+    "kudos": lambda sid, uname, args, db: handle_kudos(sid, uname, args, db),
+    "users": lambda sid, uname, args, db: handle_users(sid, db, uname),
+    "delete": lambda sid, uname, args, db: handle_delete(sid, args, db, uname),
+    "leaderboard": lambda sid, uname, args, db: handle_leaderboard(db),
+    "mystatus": lambda sid, uname, args, db: handle_status(sid, db, uname),
+    "mykudos": lambda sid, uname, args, db: handle_mykudos(sid, db, uname),
+    "help": lambda sid, uname, args, db: handle_help(),
+    "promote": lambda sid, uname, args, db: handle_promote(sid, args, db, uname),
+}
+
+
 def handle_command(form, db: Session):
     """Dispatch a Slack form payload to the appropriate command handler.
+
+    Uses a command registry pattern for cleaner dispatch logic.
+    New commands can be added to COMMAND_HANDLERS without modifying this function.
 
     Args:
         form (Mapping): Parsed form data from Slack (user_id, command, text, etc.).
@@ -70,24 +87,11 @@ def handle_command(form, db: Session):
     command = form.get("command", "").lstrip("/").lower()
     args = form.get("text", "").split()
 
-    if command == "kudos":
-        return handle_kudos(slack_id, username, args, db)
-    elif command == "users":
-        return handle_users(slack_id, db, username)
-    elif command == "delete":
-        return handle_delete(slack_id, args, db, username)
-    elif command == "leaderboard":
-        return handle_leaderboard(db)
-    elif command == "mystatus":
-        return handle_status(slack_id, db, username)
-    elif command == "mykudos":
-        return handle_mykudos(slack_id, db, username)
-    elif command == "help":
-        return handle_help()
-    elif command == "promote":
-        return handle_promote(slack_id, args, db, username)
-    else:
-        return error_response(f"Unknown command: {command}")
+    handler = COMMAND_HANDLERS.get(command)
+    if handler:
+        return handler(slack_id, username, args, db)
+    
+    return error_response(f"Unknown command: {command}")
 
 
 # ---------------- Block Kit helpers ----------------
