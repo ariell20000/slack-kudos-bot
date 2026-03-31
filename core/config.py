@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str #for things that not related to slack, like JWT token generation
     ALGORITHM: str = "HS256" #JWT signing algorithm
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60  # JWT expiration in minutes
-    VERIFY_SLACK_SIGNATURE: bool = False
+    VERIFY_SLACK_SIGNATURE: bool = True  # Disable only for local testing
     
     # Business logic configuration
     DAILY_KUDOS_LIMIT: int = 5  # Maximum kudos per user per day

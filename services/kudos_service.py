@@ -222,10 +222,13 @@ def check_too_many_kudos_in_day(db: Session, user_id: int, limit: int | None = N
     if limit is None:
         limit = settings.DAILY_KUDOS_LIMIT
 
+    # Use date range for better index performance (avoids func.date() on column)
     today = datetime.now(timezone.utc).date()
+    start_of_day = datetime.combine(today, datetime.min.time(), tzinfo=timezone.utc)
+    
     kudos_count = db.query(KudosDB).filter(
         KudosDB.from_user_id == user_id,
-        func.date(KudosDB.time_created) == today
+        KudosDB.time_created >= start_of_day
     ).count()
 
     return kudos_count >= limit
