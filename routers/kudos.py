@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from models import Kudos, KudosResponse
 from models_db import User
 from core.dependencies import get_current_user, get_db
-from services import kudos_service, user_service
+from services import kudos_service
 from services.kudos_service import KudosCreatedResponse, LeaderboardEntry, UserStatsResponse
 
 router = APIRouter(tags=["Kudos"])
@@ -53,8 +53,7 @@ def my_kudos_local(username: str, db: Session = Depends(get_db)) -> list[KudosRe
     Returns:
         List[KudosResponse]: List of kudos for the user.
     """
-    user = user_service.get_user_by_username(username, db)
-    return kudos_service.get_kudos_by_username(user.username, db)
+    return kudos_service.get_kudos_by_username(username, db)
 
 @router.get("/kudos/mystatus")
 def my_status_local(username: str, db: Session = Depends(get_db)) -> UserStatsResponse:
