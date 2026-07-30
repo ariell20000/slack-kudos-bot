@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from core.logger import logger
-from models import Kudos
+from models import KudosRequest
 from core.config import settings
 from services import auth_service, kudos_service, user_service
 
@@ -32,7 +32,13 @@ def verify_slack_signature(headers, body: bytes):
         logger.warning("failed to verify slack signature")
         raise HTTPException(status_code=400, detail="Missing Slack headers")
 
-    if abs(time() - int(slack_timestamp)) > settings.SLACK_REQUEST_TIMEOUT_SECONDS:
+    try:
+        timestamp_age = abs(time() - int(slack_timestamp))
+    except ValueError:
+        logger.warning("failed to verify slack signature because timestamp header was not a number")
+        raise HTTPException(status_code=400, detail="Invalid Slack timestamp")
+
+    if timestamp_age > settings.SLACK_REQUEST_TIMEOUT_SECONDS:
         logger.warning("failed to verify slack signature because request timed out")
         raise HTTPException(status_code=400, detail="Request too old")
 
@@ -113,6 +119,25 @@ def error_response(message: str):
     }
 
 
+def _handle_error(e: Exception, context: str):
+    """Convert an exception into a safe, user-facing Slack error response.
+
+    HTTPExceptions show their detail message directly; anything else is logged
+    with a traceback and reported to the user with a generic message instead.
+
+    Args:
+        e (Exception): The caught exception.
+        context (str): Short label identifying the handler, for the log message.
+
+    Returns:
+        dict: Block Kit ephemeral error response.
+    """
+    if isinstance(e, HTTPException):
+        return error_response(e.detail)
+    logger.exception("Unexpected error in %s", context)
+    return error_response("Something went wrong. Please try again.")
+
+
 def success_response(message: str):
     """Return a Slack Block Kit ephemeral success response.
 
@@ -150,9 +175,9 @@ def handle_kudos(slack_id: str, username: str, args: list, db):
     to_user = args[0]
     message = " ".join(args[1:])
     
-    kudos = Kudos(from_user=username, to_user=to_user, message=message)
-    from_user = auth_service.login_slack_user(slack_id, username, db)
+    kudos = KudosRequest(to_user=to_user, message=message)
     try:
+        from_user = auth_service.login_slack_user(slack_id, username, db)
         kudos_service.add_kudos(kudos, from_user, db)
         return success_response(f"Kudos sent from {from_user.username} to {to_user}")
     except HTTPException as e:
@@ -173,7 +198,7 @@ def handle_users(slack_id, db, username):
     try:
         user = auth_service.login_slack_user(slack_id, username, db)
     except Exception as e:
-        return error_response(str(e))
+        return _handle_error(e, "handle_users (login)")
     try:
         data = user_service.get_users_data(user, db)
 
@@ -196,7 +221,7 @@ def handle_users(slack_id, db, username):
         }
 
     except Exception as e:
-        return error_response(str(e))
+        return _handle_error(e, "handle_users")
 
 
 def handle_delete(slack_id, args, db, sender_name):
@@ -220,14 +245,14 @@ def handle_delete(slack_id, args, db, sender_name):
     try:
         user = auth_service.login_slack_user(slack_id, sender_name, db)
     except Exception as e:
-        return error_response(str(e))
+        return _handle_error(e, "handle_delete (login)")
     try:
         user_service.delete_user(username, user, db)
         logger.info("slack command: user %s deleted user %s", user.username, username)
         return success_response(f"User *{username}* deleted")
 
     except Exception as e:
-        return error_response(str(e))
+        return _handle_error(e, "handle_delete")
 
 
 def handle_leaderboard(db):
@@ -257,7 +282,7 @@ def handle_leaderboard(db):
             })
         return {"response_type": "in_channel", "blocks": blocks}
     except Exception as e:
-        return error_response(str(e))
+        return _handle_error(e, "handle_leaderboard")
 
 def handle_status(slack_id, db, username):
     """Handle the /mystatus Slack command and return user stats.
@@ -273,7 +298,7 @@ def handle_status(slack_id, db, username):
     try:
         user = auth_service.login_slack_user(slack_id, username, db)
     except Exception as e:
-        return error_response(str(e))
+        return _handle_error(e, "handle_status (login)")
 
     try:
         data = kudos_service.get_status(user.username, db)
@@ -294,7 +319,7 @@ def handle_status(slack_id, db, username):
         }
 
     except Exception as e:
-        return error_response(str(e))
+        return _handle_error(e, "handle_status")
 
 def handle_mykudos(slack_id, db, username):
     """Handle the /mykudos Slack command and return kudos sent to the user.
@@ -310,7 +335,7 @@ def handle_mykudos(slack_id, db, username):
     try:
         user = auth_service.login_slack_user(slack_id, username, db)
     except Exception as e:
-        return error_response(str(e))
+        return _handle_error(e, "handle_mykudos (login)")
 
     try:
         kudos = kudos_service.get_kudos_by_username(user.username, db)
@@ -333,7 +358,7 @@ def handle_mykudos(slack_id, db, username):
         }
 
     except Exception as e:
-        return error_response(str(e))
+        return _handle_error(e, "handle_mykudos")
 
 def handle_help():
     """Return the help text describing available Slack commands.
@@ -348,8 +373,6 @@ def handle_help():
         "/mystatus\n"
         "/mykudos\n"
         "/leaderboard\n"
-        "/login user pass\n"
-        "/register user pass\n"
         "/users (admin)\n"
         "/delete user (admin)\n"
         "/promote user (admin)"
@@ -372,7 +395,7 @@ def handle_promote(slack_id, args, db, sender_name):
     try:
         admin = auth_service.login_slack_user(slack_id, sender_name, db)
     except Exception as e:
-        return error_response(str(e))
+        return _handle_error(e, "handle_promote (login)")
 
     try:
         user_service.promote_user(username, admin, db)
@@ -381,4 +404,4 @@ def handle_promote(slack_id, args, db, sender_name):
         return success_response(f"{username} promoted to admin")
 
     except Exception as e:
-        return error_response(str(e))
+        return _handle_error(e, "handle_promote")

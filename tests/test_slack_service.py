@@ -192,7 +192,7 @@ def test_promote_command_requires_a_username_argument(db_session):
     assert response["blocks"][0]["text"]["text"] == "❌ Usage: promote <username>"
 
 
-def test_users_command_returns_error_message_when_login_fails(monkeypatch, db_session):
+def test_users_command_returns_generic_error_message_when_login_fails_unexpectedly(monkeypatch, db_session):
     def fake_login_slack_user(slack_id, username, db):
         raise Exception("not allowed")
 
@@ -201,7 +201,19 @@ def test_users_command_returns_error_message_when_login_fails(monkeypatch, db_se
     response = slack_service.handle_users("U123", db_session, "alice")
 
     assert response["response_type"] == "ephemeral"
-    assert response["blocks"][0]["text"]["text"] == "❌ not allowed"
+    assert response["blocks"][0]["text"]["text"] == "❌ Something went wrong. Please try again."
+
+
+def test_users_command_returns_http_exception_detail_when_login_fails(monkeypatch, db_session):
+    def fake_login_slack_user(slack_id, username, db):
+        raise HTTPException(status_code=403, detail="User is inactive")
+
+    monkeypatch.setattr(slack_service.auth_service, "login_slack_user", fake_login_slack_user)
+
+    response = slack_service.handle_users("U123", db_session, "alice")
+
+    assert response["response_type"] == "ephemeral"
+    assert response["blocks"][0]["text"]["text"] == "❌ User is inactive"
 
 
 def test_kudos_handler_returns_success_message_when_kudos_is_created(monkeypatch, db_session):
