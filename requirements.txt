@@ -1,6 +1,7 @@
 # Web framework
 fastapi>=0.100.0
 uvicorn>=0.20.0
+typing_extensions>=4.6.0
 
 # Database
 sqlalchemy>=2.0.0

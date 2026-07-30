@@ -1,6 +1,6 @@
 #services/kudos_service.py
 
-from typing import TypedDict
+from typing_extensions import TypedDict
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload, Session
 from fastapi import HTTPException

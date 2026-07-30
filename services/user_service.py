@@ -1,6 +1,6 @@
 #services/user_service.py
 
-from typing import TypedDict
+from typing_extensions import TypedDict
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
