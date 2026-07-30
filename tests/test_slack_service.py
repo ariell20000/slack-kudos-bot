@@ -156,7 +156,7 @@ def test_help_command_returns_command_list(db_session):
 
 
 def test_leaderboard_command_returns_no_data_message_when_there_are_no_scores(monkeypatch, db_session):
-    monkeypatch.setattr(slack_service.kudos_service, "get_leaderboard", lambda db: [])
+    monkeypatch.setattr(slack_service.kudos_service, "get_leaderboard", lambda db, limit=10: [])
 
     response = slack_service.handle_leaderboard(db_session)
 

@@ -81,12 +81,14 @@ def delete_user(username: str, current_user: User, db: Session) -> StatusRespons
     return {"status": "deleted"}
 
 
-def get_users_data(current_user: User, db: Session) -> list[UserFullResponse]:
+def get_users_data(current_user: User, db: Session, limit: int = 50, offset: int = 0) -> list[UserFullResponse]:
     """Retrieve all users in the system. Admin-only operation.
 
     Args:
         current_user (User): User performing the query (must be admin).
         db (Session): Database session.
+        limit (int): Maximum number of users to return.
+        offset (int): Number of users to skip, for pagination.
 
     Raises:
         HTTPException: 403 if not admin.
@@ -95,7 +97,7 @@ def get_users_data(current_user: User, db: Session) -> list[UserFullResponse]:
         List[UserFullResponse]: List of Pydantic user response models.
     """
     require_admin(current_user)
-    users = db.query(User).all()
+    users = db.query(User).order_by(User.id).offset(offset).limit(limit).all()
     return [UserFullResponse(
         username=user.username,
         is_active=user.is_active,

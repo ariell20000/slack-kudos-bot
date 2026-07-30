@@ -137,6 +137,22 @@ def test_leaderboard_orders_correctly(db_session, active_users):
     assert leaderboard[-1]["score"] == 0
 
 
+def test_leaderboard_respects_limit_and_offset(db_session, active_users):
+    alice, bob, charlie = active_users
+    add_kudos(Kudos(from_user="alice", to_user="bob", message="K1"), alice, db_session)
+    add_kudos(Kudos(from_user="alice", to_user="bob", message="K2"), alice, db_session)
+    add_kudos(Kudos(from_user="alice", to_user="charlie", message="K3"), alice, db_session)
+
+    first_page = get_leaderboard(db_session, limit=2, offset=0)
+    assert len(first_page) == 2
+    assert first_page[0]["username"] == "bob"
+    assert first_page[1]["username"] == "charlie"
+
+    second_page = get_leaderboard(db_session, limit=2, offset=2)
+    assert len(second_page) == 1
+    assert second_page[0]["username"] == "alice"
+
+
 def test_add_kudos_updates_leaderboard(db_session, active_users):
     alice, bob, charlie = active_users
     # Add Kudos

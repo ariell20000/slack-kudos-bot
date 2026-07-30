@@ -1,6 +1,6 @@
 #routers/kudos.py
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from models import KudosRequest, KudosResponse
@@ -31,16 +31,22 @@ def add_kudos(
 
 
 @router.get("/leaderboard")
-def get_leaderboard(db: Session = Depends(get_db)) -> list[LeaderboardEntry]:
+def get_leaderboard(
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+) -> list[LeaderboardEntry]:
     """Return the leaderboard of top users.
 
     Args:
+        limit (int): Maximum number of entries to return (1-100).
+        offset (int): Number of entries to skip, for pagination.
         db (Session): Database session.
 
     Returns:
         List[dict]: Leaderboard data from kudos_service.get_leaderboard.
     """
-    return kudos_service.get_leaderboard(db)
+    return kudos_service.get_leaderboard(db, limit=limit, offset=offset)
 
 @router.get("/kudos/mykudos")
 def my_kudos_local(

@@ -50,11 +50,13 @@ def _convert_kudos_to_response(kudos_db: KudosDB) -> KudosResponse:
     )
 
 
-def get_leaderboard(db: Session) -> list[LeaderboardEntry]:
+def get_leaderboard(db: Session, limit: int = 50, offset: int = 0) -> list[LeaderboardEntry]:
     """Retrieve a leaderboard of users ranked by kudos received.
 
     Args:
         db (Session): Database session.
+        limit (int): Maximum number of entries to return.
+        offset (int): Number of entries to skip, for pagination.
 
     Returns:
         list: List of dicts with 'username' and 'score'.
@@ -64,6 +66,8 @@ def get_leaderboard(db: Session) -> list[LeaderboardEntry]:
         .outerjoin(KudosDB, User.id == KudosDB.to_user_id)
         .group_by(User.username)
         .order_by(func.count(KudosDB.id).desc())
+        .offset(offset)
+        .limit(limit)
         .all()
     )
     return [{"username": username, "score": count} for username, count in leaderboard]

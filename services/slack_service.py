@@ -265,7 +265,7 @@ def handle_leaderboard(db):
         dict: Block Kit formatted leaderboard or a message indicating no data.
     """
     try:
-        data = kudos_service.get_leaderboard(db)
+        data = kudos_service.get_leaderboard(db, limit=10)
         if not data:
             return {"response_type": "in_channel",
                     "blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": "No data yet"}}]}

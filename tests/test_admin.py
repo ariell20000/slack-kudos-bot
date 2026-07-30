@@ -120,3 +120,17 @@ def test_only_admin_can_get_users(db_session, users):
         get_users_data(alice, db_session)
 
 
+def test_get_users_data_respects_limit_and_offset(db_session, users):
+
+    admin, alice, bob = users
+
+    first_page = get_users_data(admin, db_session, limit=2, offset=0)
+    assert len(first_page) == 2
+
+    second_page = get_users_data(admin, db_session, limit=2, offset=2)
+    assert len(second_page) == 1
+
+    all_usernames = {u.username for u in first_page + second_page}
+    assert all_usernames == {"admin", "alice", "bob"}
+
+
