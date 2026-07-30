@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: slack-kudos-bot
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: SECRET_KEY
+        sync: false
+      - key: SLACK_SIGNING_SECRET
+        sync: false
+      - key: VERIFY_SLACK_SIGNATURE
+        value: "True"
