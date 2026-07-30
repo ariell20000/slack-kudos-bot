@@ -15,6 +15,7 @@ A FastAPI-based Slack bot for sending kudos with JWT authentication, role-based 
 - [Slack Commands](#slack-commands)
 - [Database Structure](#database-structure)
 - [Setup & Run](#setup--run)
+- [Deployment](#deployment)
 - [Testing](#testing)
 - [Future Improvements](#future-improvements)
 
@@ -95,13 +96,14 @@ slack_kudos_bot/
 - Only active users can send and receive
 
 ### Admin Features
-- View all users
+- View all users (`GET /users/data`, paginated via `limit`/`offset`)
 - Deactivate / delete users
 - Promote users to admin
 
 ### Leaderboard
 - Displays top users by Kudos received
 - Special emojis for top ranks (🔥, 🥇, 🥈, 🥉)
+- `GET /leaderboard` supports `limit`/`offset` query params (default 50, max 100); the Slack `/leaderboard` command shows the top 10
 
 ### Security
 - Slack request signature verification (HMAC)
@@ -192,6 +194,21 @@ API docs available at http://localhost:8000/docs
 docker build -t slack-kudos-bot .
 docker run -p 8000:8000 --env-file .env slack-kudos-bot
 ```
+
+---
+
+## Deployment
+
+Deployed on [Render](https://render.com) using the included `render.yaml` blueprint (Docker runtime, free tier, health check on `/health`).
+
+1. Push to GitHub, then in Render: **New +** → **Blueprint** → select the repo. Render auto-detects `render.yaml`.
+2. Fill in the two required secrets in Render's dashboard (not committed to the repo): `SECRET_KEY` and `SLACK_SIGNING_SECRET`. `VERIFY_SLACK_SIGNATURE` is set to `True` by the blueprint.
+3. Point the Slack app's slash command Request URL(s) at `https://<your-render-url>/slack/command`.
+4. Every push to `main` auto-deploys.
+
+The Dockerfile listens on `$PORT` (falling back to `8000` for local `docker run`), since Render assigns its own port at runtime.
+
+**Note:** this project uses SQLite (`kudos.db`), a local file. Render's free tier filesystem is ephemeral, so the database resets on redeploy — fine for a demo, but not suitable for real persistent data without switching to a hosted Postgres instance.
 
 ---
 
