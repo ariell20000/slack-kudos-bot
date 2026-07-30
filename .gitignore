@@ -8,3 +8,5 @@ app.log
 *.log
 .pytest_cache/
 .github/copilot-instructions.md
+TECH_STACK_GUIDE.md
+linkedin/
