@@ -2,6 +2,8 @@
 
 A FastAPI-based Slack bot for sending kudos with JWT authentication, role-based access control, and SQLite persistence.
 
+![Demo: sending kudos and viewing the leaderboard in Slack](docs/demo.gif)
+
 ---
 
 ## Table of Contents
